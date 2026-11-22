@@ -14,7 +14,7 @@ import '../../widgets/quantity_stepper.dart';
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
 
-  void _showOrderSuccessDialog(BuildContext context, int orderNumber, double totalPaid) {
+  void _showOrderSuccessDialog(BuildContext context, String orderId, double totalPaid) {
     final currencyFormat = NumberFormat.currency(
       locale: 'es_MX',
       symbol: '\$',
@@ -92,7 +92,7 @@ class CartScreen extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '#CA-$orderNumber',
+                            orderId.startsWith('#') ? orderId : '#$orderId',
                             style: GoogleFonts.sora(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -562,14 +562,12 @@ class CartScreen extends StatelessWidget {
                   );
 
                   if (confirm && context.mounted) {
-                    final randomOrder = 1000 + Random().nextInt(9000);
-                    final totalPaid = total;
-                    final success = await state.placeOrder();
-                    if (success && context.mounted) {
+                    final order = await state.placeOrder();
+                    if (order != null && context.mounted) {
                       _showOrderSuccessDialog(
                         context,
-                        randomOrder,
-                        totalPaid,
+                        order.id,
+                        order.total,
                       );
                     } else if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(

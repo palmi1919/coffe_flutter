@@ -1,16 +1,21 @@
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import '../models/category.dart';
+import '../models/order.dart';
 import '../models/product.dart';
 import '../models/product_size.dart';
 import '../models/cart_item.dart';
+import '../models/user.dart';
 import '../services/local_storage_service.dart';
 
 class CoffeeShopState extends ChangeNotifier {
   final LocalStorageService _storageService;
 
   List<Product> _products = [];
+  List<CoffeeOrder> _orders = [];
   final List<CartItem> _cartItems = [];
 
+  AppUser? _currentUser;
   ProductCategory? _selectedCategory;
   String _searchQuery = '';
   bool _isLoading = true;
@@ -20,10 +25,15 @@ class CoffeeShopState extends ChangeNotifier {
   }
 
   bool get isLoading => _isLoading;
+  AppUser? get currentUser => _currentUser;
+  bool get isAuthenticated => _currentUser != null;
+  bool get isAdmin => _currentUser?.isAdmin ?? false;
+
   ProductCategory? get selectedCategory => _selectedCategory;
   String get searchQuery => _searchQuery;
 
   List<Product> get allProducts => List.unmodifiable(_products);
+  List<CoffeeOrder> get allOrders => List.unmodifiable(_orders);
 
   /// Catálogo visible para el cliente (únicamente productos con estatus activo)
   List<Product> get customerMenuProducts {
@@ -67,9 +77,50 @@ class CoffeeShopState extends ChangeNotifier {
   /// Total de la compra en pesos mexicanos (IVA incluido)
   double get cartTotal => cartSubtotal;
 
+  // ==========================================
+  // ESTADÍSTICAS Y MÉTRICAS PARA ADMIN
+  // ==========================================
+  double get totalRevenue => _orders
+      .where((o) => o.status != OrderStatus.cancelado)
+      .fold(0.0, (sum, o) => sum + o.total);
+
+  int get totalOrdersCount => _orders.length;
+
+  int get pendingOrdersCount => _orders
+      .where((o) =>
+          o.status == OrderStatus.pendiente ||
+          o.status == OrderStatus.enPreparacion)
+      .length;
+
+  int get activeProductsCount => _products.where((p) => p.estaActivo).length;
+
+  int get lowStockProductsCount =>
+      _products.where((p) => p.existencias > 0 && p.existencias <= 5).length;
+
+  int get outOfStockProductsCount =>
+      _products.where((p) => p.existencias == 0).length;
+
   void _loadInitialData() {
     _products = _storageService.loadProducts();
+    _orders = _storageService.loadOrders();
+    _currentUser = _storageService.loadUser();
     _isLoading = false;
+    notifyListeners();
+  }
+
+  // ==========================================
+  // AUTENTICACIÓN Y SESIÓN
+  // ==========================================
+  Future<void> login(AppUser user) async {
+    _currentUser = user;
+    await _storageService.saveUser(user);
+    notifyListeners();
+  }
+
+  Future<void> logout() async {
+    _currentUser = null;
+    _cartItems.clear();
+    await _storageService.saveUser(null);
     notifyListeners();
   }
 
@@ -123,7 +174,8 @@ class CoffeeShopState extends ChangeNotifier {
     }
 
     final existingIndex = _cartItems.indexWhere(
-      (item) => item.product.id == liveProduct.id && item.selectedSize.id == size.id,
+      (item) =>
+          item.product.id == liveProduct.id && item.selectedSize.id == size.id,
     );
 
     if (existingIndex >= 0) {
@@ -185,21 +237,23 @@ class CoffeeShopState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Confirma el pedido: descuenta existencias en la base de datos y vacía el carrito
-  Future<bool> placeOrder() async {
-    if (_cartItems.isEmpty) return false;
+  /// Confirma el pedido: descuenta existencias en la base de datos,
+  /// registra la orden en el historial del sistema y vacía el carrito.
+  Future<CoffeeOrder?> placeOrder() async {
+    if (_cartItems.isEmpty) return null;
 
-    // Verificar que todas las existencias sigan siendo suficientes
+    // Verificar existencias
     for (final item in _cartItems) {
       final product = findProductById(item.product.id);
       if (product == null || product.existencias < item.quantity) {
-        return false;
+        return null;
       }
     }
 
-    // Descontar existencias
+    // Descontar existencias de los productos
     for (final item in _cartItems) {
-      final productIndex = _products.indexWhere((p) => p.id == item.product.id);
+      final productIndex =
+          _products.indexWhere((p) => p.id == item.product.id);
       if (productIndex >= 0) {
         final current = _products[productIndex];
         final newStock = current.existencias - item.quantity;
@@ -209,13 +263,31 @@ class CoffeeShopState extends ChangeNotifier {
       }
     }
 
-    // Guardar en almacenamiento local
+    final orderId = 'CA-${1000 + Random().nextInt(9000)}';
+    final orderSummaries =
+        _cartItems.map((ci) => OrderProductSummary.fromCartItem(ci)).toList();
+    final totalPaid = cartTotal;
+
+    final order = CoffeeOrder(
+      id: orderId,
+      customerName: _currentUser?.name ?? 'Cliente Mostrador',
+      customerEmail: _currentUser?.email ?? 'cliente@cafe.com',
+      date: DateTime.now(),
+      items: orderSummaries,
+      total: totalPaid,
+      status: OrderStatus.pendiente,
+    );
+
+    _orders.insert(0, order);
+
+    // Guardar productos y órdenes actualizadas
     await _storageService.saveProducts(_products);
+    await _storageService.saveOrders(_orders);
 
     // Vaciar carrito
     _cartItems.clear();
     notifyListeners();
-    return true;
+    return order;
   }
 
   // ==========================================
@@ -247,6 +319,31 @@ class CoffeeShopState extends ChangeNotifier {
     }
   }
 
+  /// Modifica directamente las existencias de un producto
+  Future<void> updateProductStock(String productId, int newStock) async {
+    final index = _products.indexWhere((p) => p.id == productId);
+    if (index >= 0) {
+      final updated = _products[index].copyWith(
+        existencias: newStock < 0 ? 0 : newStock,
+      );
+      _products[index] = updated;
+      await _storageService.saveProducts(_products);
+      notifyListeners();
+    }
+  }
+
+  /// Incrementa o decrementa existencias
+  Future<void> adjustProductStock(String productId, int delta) async {
+    final index = _products.indexWhere((p) => p.id == productId);
+    if (index >= 0) {
+      final current = _products[index];
+      final newStock = max(0, current.existencias + delta);
+      _products[index] = current.copyWith(existencias: newStock);
+      await _storageService.saveProducts(_products);
+      notifyListeners();
+    }
+  }
+
   /// Cambia el estatus del producto (activo / dado de baja) sin eliminarlo
   Future<void> toggleProductStatus(String productId) async {
     final index = _products.indexWhere((p) => p.id == productId);
@@ -265,10 +362,21 @@ class CoffeeShopState extends ChangeNotifier {
     }
   }
 
+  /// Actualiza el estatus de una orden (Pendiente, En preparación, Entregado, etc.)
+  Future<void> updateOrderStatus(String orderId, OrderStatus newStatus) async {
+    final index = _orders.indexWhere((o) => o.id == orderId);
+    if (index >= 0) {
+      _orders[index] = _orders[index].copyWith(status: newStatus);
+      await _storageService.saveOrders(_orders);
+      notifyListeners();
+    }
+  }
+
   /// Restaura los datos del catálogo inicial para demostración académica
   Future<void> restoreSeedData() async {
     await _storageService.resetToSeedData();
     _products = _storageService.loadProducts();
+    _orders = _storageService.loadOrders();
     _cartItems.clear();
     notifyListeners();
   }

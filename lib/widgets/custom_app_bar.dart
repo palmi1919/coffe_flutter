@@ -8,8 +8,10 @@ class CoffeeAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? subtitle;
   final bool showCart;
   final bool showAdmin;
+  final bool showLogout;
   final VoidCallback? onCartPressed;
   final VoidCallback? onAdminPressed;
+  final VoidCallback? onLogoutPressed;
   final Widget? leading;
 
   const CoffeeAppBar({
@@ -17,9 +19,11 @@ class CoffeeAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.title,
     this.subtitle,
     this.showCart = true,
-    this.showAdmin = true,
+    this.showAdmin = false,
+    this.showLogout = true,
     this.onCartPressed,
     this.onAdminPressed,
+    this.onLogoutPressed,
     this.leading,
   });
 
@@ -37,7 +41,7 @@ class CoffeeAppBar extends StatelessWidget implements PreferredSizeWidget {
       backgroundColor: AppTheme.backgroundLight,
       leading: leading,
       title: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
@@ -52,7 +56,7 @@ class CoffeeAppBar extends StatelessWidget implements PreferredSizeWidget {
               Text(
                 title,
                 style: GoogleFonts.sora(
-                  fontSize: 19,
+                  fontSize: 18,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.textDark,
                   letterSpacing: -0.3,
@@ -65,7 +69,7 @@ class CoffeeAppBar extends StatelessWidget implements PreferredSizeWidget {
             Text(
               subtitle!,
               style: GoogleFonts.sora(
-                fontSize: 12,
+                fontSize: 11.5,
                 fontWeight: FontWeight.w400,
                 color: AppTheme.textLight,
               ),
@@ -74,9 +78,9 @@ class CoffeeAppBar extends StatelessWidget implements PreferredSizeWidget {
         ],
       ),
       actions: [
-        if (showAdmin)
+        if (showAdmin && state.isAdmin)
           IconButton(
-            tooltip: 'Administración',
+            tooltip: 'Panel de Administración',
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
@@ -94,12 +98,12 @@ class CoffeeAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         if (showCart)
           Padding(
-            padding: const EdgeInsets.only(right: 12, left: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Stack(
               clipBehavior: Clip.none,
               children: [
                 IconButton(
-                  tooltip: 'Carrito de compras',
+                  tooltip: 'Mi Carrito / Pedido',
                   icon: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -143,6 +147,27 @@ class CoffeeAppBar extends StatelessWidget implements PreferredSizeWidget {
                     ),
                   ),
               ],
+            ),
+          ),
+        if (showLogout)
+          Padding(
+            padding: const EdgeInsets.only(right: 12, left: 4),
+            child: IconButton(
+              tooltip: 'Cerrar sesión',
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceWhite,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.borderLight),
+                ),
+                child: const Icon(
+                  Icons.logout_rounded,
+                  color: AppTheme.statusDanger,
+                  size: 19,
+                ),
+              ),
+              onPressed: onLogoutPressed,
             ),
           ),
       ],

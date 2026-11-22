@@ -11,7 +11,8 @@ import '../../state/coffee_shop_scope.dart';
 import '../../widgets/confirm_dialog.dart';
 
 class EditProductsScreen extends StatefulWidget {
-  const EditProductsScreen({super.key});
+  final bool isEmbedded;
+  const EditProductsScreen({super.key, this.isEmbedded = false});
 
   @override
   State<EditProductsScreen> createState() => _EditProductsScreenState();
@@ -52,24 +53,7 @@ class _EditProductsScreenState extends State<EditProductsScreen> {
       decimalDigits: 2,
     );
 
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundLight,
-      appBar: AppBar(
-        title: Text(
-          'Catálogo de productos',
-          style: GoogleFonts.sora(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: AppTheme.textDark,
-          ),
-        ),
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Column(
+    final bodyContent = Column(
         children: [
           // Barra de filtro de administrador
           Padding(
@@ -297,7 +281,30 @@ class _EditProductsScreenState extends State<EditProductsScreen> {
             ),
           ),
         ],
+      );
+
+    if (widget.isEmbedded) {
+      return bodyContent;
+    }
+
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundLight,
+      appBar: AppBar(
+        title: Text(
+          'Catálogo de productos',
+          style: GoogleFonts.sora(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.textDark,
+          ),
+        ),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
+      body: bodyContent,
     );
   }
 }

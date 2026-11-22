@@ -6,13 +6,14 @@ import '../../models/product.dart';
 import '../../models/product_size.dart';
 import '../../state/coffee_shop_scope.dart';
 import '../../widgets/category_chip.dart';
+import '../../widgets/confirm_dialog.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/empty_state_view.dart';
 import '../../widgets/product_card.dart';
+import '../admin/admin_main_screen.dart';
+import '../auth/login_screen.dart';
 import 'cart_screen.dart';
 import 'product_detail_screen.dart';
-import '../admin/add_product_screen.dart';
-import '../admin/edit_products_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,200 +31,26 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _showAdminBottomSheet(BuildContext context) {
-    showModalBottomSheet(
+  Future<void> _handleLogout(BuildContext context) async {
+    final confirm = await ConfirmDialog.show(
       context: context,
-      backgroundColor: AppTheme.surfaceWhite,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppTheme.caramel.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.admin_panel_settings_rounded,
-                        color: AppTheme.caramel,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Módulo de administración',
-                          style: GoogleFonts.sora(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.textDark,
-                          ),
-                        ),
-                        Text(
-                          'Gestión del catálogo y existencias',
-                          style: GoogleFonts.sora(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                            color: AppTheme.textLight,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                // Opción 1: Pantalla 4 - Agregar productos
-                ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    side: const BorderSide(color: AppTheme.borderLight),
-                  ),
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.surfaceCream,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.add_circle_outline_rounded,
-                      color: AppTheme.primaryCoffee,
-                      size: 22,
-                    ),
-                  ),
-                  title: Text(
-                    'Agregar nuevo producto',
-                    style: GoogleFonts.sora(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textDark,
-                    ),
-                  ),
-                  subtitle: Text(
-                    'Registrar artículos, precios, existencias y fotos',
-                    style: GoogleFonts.sora(
-                      fontSize: 11,
-                      color: AppTheme.textLight,
-                    ),
-                  ),
-                  trailing: const Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: 15,
-                    color: AppTheme.textLight,
-                  ),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AddProductScreen(),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 12),
-                // Opción 2: Pantalla 5 - Edición de productos
-                ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    side: const BorderSide(color: AppTheme.borderLight),
-                  ),
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.surfaceCream,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.edit_note_rounded,
-                      color: AppTheme.primaryCoffee,
-                      size: 22,
-                    ),
-                  ),
-                  title: Text(
-                    'Modificar catálogo y estatus',
-                    style: GoogleFonts.sora(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textDark,
-                    ),
-                  ),
-                  subtitle: Text(
-                    'Editar datos, actualizar inventario y dar de baja',
-                    style: GoogleFonts.sora(
-                      fontSize: 11,
-                      color: AppTheme.textLight,
-                    ),
-                  ),
-                  trailing: const Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: 15,
-                    color: AppTheme.textLight,
-                  ),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const EditProductsScreen(),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 14),
-                // Opción rápida para reiniciar demostración académica
-                Center(
-                  child: TextButton.icon(
-                    onPressed: () async {
-                      Navigator.pop(ctx);
-                      final state = CoffeeShopScope.of(context);
-                      await state.restoreSeedData();
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Catálogo de prueba restablecido con éxito.',
-                            ),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      }
-                    },
-                    icon: const Icon(
-                      Icons.restart_alt_rounded,
-                      size: 18,
-                      color: AppTheme.textLight,
-                    ),
-                    label: Text(
-                      'Restablecer catálogo inicial',
-                      style: GoogleFonts.sora(
-                        fontSize: 12,
-                        color: AppTheme.textLight,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      title: '¿Cerrar sesión?',
+      message: 'Regresarás a la pantalla de inicio de sesión.',
+      confirmText: 'Cerrar sesión',
+      confirmColor: AppTheme.statusDanger,
+      icon: Icons.logout_rounded,
     );
+
+    if (confirm && context.mounted) {
+      final state = CoffeeShopScope.of(context);
+      await state.logout();
+      if (context.mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      }
+    }
   }
 
   void _onQuickAdd(BuildContext context, Product product) {
@@ -282,23 +109,84 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final state = CoffeeShopScope.of(context);
+    final user = state.currentUser;
     final products = state.customerMenuProducts;
 
     return Scaffold(
       appBar: CoffeeAppBar(
         title: 'Café Aroma',
-        subtitle: 'Menú digital & especialidad',
+        subtitle: user != null ? '¡Hola, ${user.name}!' : 'Pide tu café favorito',
+        showAdmin: false,
+        showLogout: true,
+        onLogoutPressed: () => _handleLogout(context),
         onCartPressed: () {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const CartScreen()),
           );
         },
-        onAdminPressed: () => _showAdminBottomSheet(context),
       ),
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
+          // Banner de aviso si un administrador está en la vista de cliente
+          if (state.isAdmin)
+            SliverToBoxAdapter(
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppTheme.caramel.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppTheme.caramel.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.admin_panel_settings_rounded,
+                      color: AppTheme.caramel,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Modo Administrador (Vista de Menú)',
+                        style: GoogleFonts.sora(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.primaryCoffee,
+                        ),
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AdminMainScreen(),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppTheme.caramel,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Ir al Panel Admin',
+                          style: GoogleFonts.sora(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           // Banner de bienvenida y buscador
           SliverToBoxAdapter(
             child: Padding(

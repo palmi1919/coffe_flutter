@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'config/app_theme.dart';
 import 'screens/admin/add_product_screen.dart';
+import 'screens/admin/admin_main_screen.dart';
 import 'screens/admin/edit_products_screen.dart';
+import 'screens/auth/login_screen.dart';
 import 'screens/customer/cart_screen.dart';
 import 'screens/customer/home_screen.dart';
 import 'services/local_storage_service.dart';
@@ -40,15 +42,28 @@ class CoffeeApp extends StatelessWidget {
         title: 'Café Aroma',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
-        // Rutas nombradas para las pantallas principales del proyecto
+        // Pantalla inicial según el estado de autenticación y rol
+        home: _getInitialScreen(state),
+        // Rutas nombradas para navegación en el sistema
         routes: {
-          '/': (context) => const HomeScreen(),
+          '/login': (context) => const LoginScreen(),
+          '/home': (context) => const HomeScreen(),
+          '/admin': (context) => const AdminMainScreen(),
           '/cart': (context) => const CartScreen(),
           '/admin/add': (context) => const AddProductScreen(),
           '/admin/edit': (context) => const EditProductsScreen(),
         },
-        initialRoute: '/',
       ),
     );
+  }
+
+  Widget _getInitialScreen(CoffeeShopState state) {
+    if (!state.isAuthenticated) {
+      return const LoginScreen();
+    }
+    if (state.isAdmin) {
+      return const AdminMainScreen();
+    }
+    return const HomeScreen();
   }
 }
