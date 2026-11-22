@@ -1,80 +1,71 @@
+import 'package:flutter/foundation.dart';
+import '../config/supabase_config.dart';
 import '../models/user.dart';
 
 class AuthService {
-  static const String adminEmail = 'admin@cafe.com';
-  static const String adminUser = 'admin';
-  static const String adminPass = 'admin123';
-
-  static const String customerEmail = 'cliente@cafe.com';
-  static const String customerUser = 'cliente';
-  static const String customerPass = 'cliente123';
-
-  static AppUser? authenticate({
+  static Future<AppUser?> authenticate({
     required String identifier,
     required String password,
-  }) {
-    final cleanId = identifier.trim().toLowerCase();
+  }) async {
+    final cleanId = identifier.trim();
     final cleanPass = password.trim();
 
-    // Credenciales de Administrador
-    if ((cleanId == adminEmail || cleanId == adminUser) &&
-        (cleanPass == adminPass || cleanPass == 'admin')) {
-      return const AppUser(
-        id: 'usr_admin',
-        name: 'Administrador General',
-        email: 'admin@cafe.com',
-        role: UserRole.admin,
-      );
+    if (cleanId.isEmpty || cleanPass.isEmpty) {
+      return null;
     }
 
-    // Credenciales de Cliente predeterminado
-    if ((cleanId == customerEmail || cleanId == customerUser) &&
-        (cleanPass == customerPass || cleanPass == 'cliente')) {
-      return const AppUser(
-        id: 'usr_client',
-        name: 'Carlos Mendoza',
-        email: 'cliente@cafe.com',
-        role: UserRole.customer,
-      );
-    }
+    try {
+      final client = SupabaseConfig.client;
+      final res = await client
+          .from('usuario')
+          .select('''
+            pk_usuario,
+            nom_usuario,
+            contrasena,
+            fk_tipo_usu,
+            estatus,
+            persona (pk_persona, nom_persona, apaterno, amaterno),
+            tipo_usu (pk_tipo_usu, nom_tipo)
+          ''')
+          .eq('nom_usuario', cleanId)
+          .eq('contrasena', cleanPass)
+          .eq('estatus', true)
+          .maybeSingle();
 
-    // Si escribe una cuenta con "admin" en el nombre, entra como admin
-    if (cleanId.contains('admin') && cleanPass.isNotEmpty) {
+      if (res == null) {
+        return null;
+      }
+
+      Map<String, dynamic>? personaMap;
+      if (res['persona'] is Map<String, dynamic>) {
+        personaMap = res['persona'] as Map<String, dynamic>;
+      } else if (res['persona'] is List && (res['persona'] as List).isNotEmpty) {
+        personaMap = (res['persona'] as List).first as Map<String, dynamic>;
+      }
+      String fullName = res['nom_usuario'] as String? ?? '';
+      if (personaMap != null) {
+        final nom = personaMap['nom_persona'] as String? ?? '';
+        final ap = personaMap['apaterno'] as String? ?? '';
+        final am = personaMap['amaterno'] as String? ?? '';
+        fullName = '$nom $ap $am'.trim();
+        if (fullName.isEmpty) {
+          fullName = res['nom_usuario'] as String? ?? 'Usuario';
+        }
+      }
+
+      final int tipoUsu = res['fk_tipo_usu'] as int? ?? 2;
+      final role = (tipoUsu == 1) ? UserRole.admin : UserRole.customer;
+
       return AppUser(
-        id: 'usr_admin_${DateTime.now().millisecondsSinceEpoch}',
-        name: 'Admin ($cleanId)',
-        email: cleanId.contains('@') ? cleanId : '$cleanId@cafe.com',
-        role: UserRole.admin,
+        id: res['pk_usuario'] as int,
+        username: res['nom_usuario'] as String? ?? cleanId,
+        name: fullName,
+        role: role,
+        personaId: personaMap?['pk_persona'] as int?,
       );
+    } catch (e) {
+      debugPrint('Error al autenticar contra Supabase: $e');
+      rethrow;
     }
-
-    // Cualquier otro usuario que ingrese con contraseña válida se registra como cliente
-    if (cleanId.isNotEmpty && cleanPass.isNotEmpty) {
-      final nameFormatted = cleanId.contains('@')
-          ? cleanId.split('@').first
-          : cleanId;
-      return AppUser(
-        id: 'usr_client_${DateTime.now().millisecondsSinceEpoch}',
-        name: nameFormatted[0].toUpperCase() + nameFormatted.substring(1),
-        email: cleanId.contains('@') ? cleanId : '$cleanId@gmail.com',
-        role: UserRole.customer,
-      );
-    }
-
-    return null;
   }
-
-  static AppUser get quickAdminUser => const AppUser(
-        id: 'usr_admin_quick',
-        name: 'Administrador General',
-        email: 'admin@cafe.com',
-        role: UserRole.admin,
-      );
-
-  static AppUser get quickCustomerUser => const AppUser(
-        id: 'usr_client_quick',
-        name: 'Carlos Mendoza',
-        email: 'carlos.mendoza@email.com',
-        role: UserRole.customer,
-      );
 }

@@ -57,27 +57,16 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
     }
   }
 
-  Future<void> _handleResetDemo(BuildContext context) async {
-    final confirm = await ConfirmDialog.show(
-      context: context,
-      title: 'Restablecer catálogo inicial',
-      message: 'Se reiniciarán los productos y pedidos a los valores predeterminados de prueba.',
-      confirmText: 'Restablecer',
-      confirmColor: AppTheme.statusWarning,
-      icon: Icons.restart_alt_rounded,
-    );
-
-    if (confirm && context.mounted) {
-      final state = CoffeeShopScope.of(context);
-      await state.restoreSeedData();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Catálogo y pedidos de prueba restablecidos con éxito.'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
+  Future<void> _handleRefresh(BuildContext context) async {
+    final state = CoffeeShopScope.of(context);
+    await state.loadData();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Datos sincronizados con Supabase.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
     }
   }
 
@@ -182,8 +171,8 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
             ),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             onSelected: (value) {
-              if (value == 'reset') {
-                _handleResetDemo(context);
+              if (value == 'refresh') {
+                _handleRefresh(context);
               } else if (value == 'logout') {
                 _handleLogout(context);
               }
@@ -203,7 +192,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
                       ),
                     ),
                     Text(
-                      user?.email ?? 'admin@cafe.com',
+                      '@${user?.username ?? 'admin'}',
                       style: GoogleFonts.sora(
                         fontSize: 11,
                         color: AppTheme.textLight,
@@ -214,13 +203,13 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
                 ),
               ),
               PopupMenuItem(
-                value: 'reset',
+                value: 'refresh',
                 child: Row(
                   children: [
-                    const Icon(Icons.restart_alt_rounded, size: 18, color: AppTheme.textMedium),
+                    const Icon(Icons.sync_rounded, size: 18, color: AppTheme.caramel),
                     const SizedBox(width: 10),
                     Text(
-                      'Restablecer catálogo demo',
+                      'Sincronizar Supabase',
                       style: GoogleFonts.sora(fontSize: 13),
                     ),
                   ],

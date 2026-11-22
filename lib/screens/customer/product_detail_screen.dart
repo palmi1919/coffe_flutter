@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -11,7 +10,7 @@ import '../../widgets/size_selector.dart';
 import 'cart_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
-  final String productId;
+  final int productId;
 
   const ProductDetailScreen({
     super.key,
@@ -25,6 +24,7 @@ class ProductDetailScreen extends StatefulWidget {
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   ProductSize? _selectedSize;
   int _quantity = 1;
+  int _currentImageIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -46,10 +46,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       );
     }
 
-    // Inicializar el tamaño seleccionado por defecto si aún no está asignado
     _selectedSize ??= product.tamanos.isNotEmpty
         ? product.tamanos.first
-        : ProductSize.standardBeverageSizes().first;
+        : const ProductSize(id: 1, nombre: 'Estándar', descripcionCorta: '', precioAdicional: 0);
 
     final currentUnitPrice = product.precioConTamano(_selectedSize!);
     final calculatedTotal = currentUnitPrice * _quantity;
@@ -57,12 +56,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final isOutOfStock = remainingStock <= 0 || !product.estaActivo;
     final inCartCount = state.getQuantityInCart(product.id);
 
+    // Lista de imágenes para mostrar
+    final allImages = product.imagenes.map((img) => img.url).toList();
+    if (allImages.isEmpty && product.imagenUrl != null && product.imagenUrl!.isNotEmpty) {
+      allImages.add(product.imagenUrl!);
+    }
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          // Imagen con Hero animation y AppBar colapsable
+          // Imagen(es) con Carousel o Placeholder y AppBar colapsable
           SliverAppBar(
             expandedHeight: 330,
             pinned: true,
@@ -137,55 +142,79 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
-              background: Hero(
-                tag: 'product_image_${product.id}',
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    CachedNetworkImage(
-                      imageUrl: product.imagenUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: AppTheme.surfaceCream,
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                            color: AppTheme.caramel,
+              background: allImages.isEmpty
+                  ? _buildEmptyPlaceholder()
+                  : Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        PageView.builder(
+                          itemCount: allImages.length,
+                          onPageChanged: (idx) {
+                            setState(() => _currentImageIndex = idx);
+                          },
+                          itemBuilder: (context, idx) {
+                            return CachedNetworkImage(
+                              imageUrl: allImages[idx],
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: AppTheme.surfaceCream,
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                    color: AppTheme.caramel,
+                                  ),
+                                ),
+                              ),
+                              errorWidget: (context, url, error) =>
+                                  _buildEmptyPlaceholder(),
+                            );
+                          },
+                        ),
+                        // Indicador de puntos si hay más de 1 imagen
+                        if (allImages.length > 1)
+                          Positioned(
+                            bottom: 24,
+                            left: 0,
+                            right: 0,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(
+                                allImages.length,
+                                (i) => AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                                  width: _currentImageIndex == i ? 18 : 7,
+                                  height: 7,
+                                  decoration: BoxDecoration(
+                                    color: _currentImageIndex == i
+                                        ? AppTheme.caramel
+                                        : Colors.white.withOpacity(0.7),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        // Degradado inferior
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          height: 60,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.transparent,
+                                  AppTheme.backgroundLight.withOpacity(0.9),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        color: AppTheme.surfaceCream,
-                        child: const Center(
-                          child: Icon(
-                            Icons.coffee_rounded,
-                            size: 60,
-                            color: AppTheme.cinnamon,
-                          ),
-                        ),
-                      ),
+                      ],
                     ),
-                    // Degradado inferior para resaltar transición hacia el contenido
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      height: 80,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              AppTheme.backgroundLight.withOpacity(0.9),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ),
           ),
 
@@ -200,7 +229,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Categoría y badge de existencias
+                  // Categoría y existencias
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -217,13 +246,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              product.categoria.icono,
+                              product.categoria?.icono ?? Icons.coffee_rounded,
                               size: 14,
                               color: AppTheme.caramel,
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              product.categoria.nombre,
+                              product.categoria?.nombre ?? 'Café de Especialidad',
                               style: GoogleFonts.sora(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -294,7 +323,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                   const SizedBox(height: 8),
 
-                  // Descripción detallada
+                  // Descripción
                   Text(
                     product.descripcion,
                     style: GoogleFonts.sora(
@@ -310,16 +339,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   const SizedBox(height: 24),
 
                   // Selector de tamaños
-                  SizeSelector(
-                    sizes: product.tamanos,
-                    selectedSize: _selectedSize!,
-                    onSizeSelected: (newSize) {
-                      setState(() {
-                        _selectedSize = newSize;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 24),
+                  if (product.tamanos.isNotEmpty) ...[
+                    SizeSelector(
+                      sizes: product.tamanos,
+                      selectedSize: _selectedSize!,
+                      onSizeSelected: (newSize) {
+                        setState(() {
+                          _selectedSize = newSize;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                  ],
 
                   // Selector de cantidad
                   Row(
@@ -369,7 +400,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
         ],
       ),
-      // Barra inferior fija con precio calculado y botón de acción
+
+      // Barra inferior con total y botón
       bottomSheet: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
@@ -386,7 +418,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         child: SafeArea(
           child: Row(
             children: [
-              // Precio calculado
+              // Precio total
               Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -485,6 +517,28 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyPlaceholder() {
+    return Container(
+      color: AppTheme.surfaceCream,
+      child: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.coffee_rounded, size: 70, color: AppTheme.cinnamon),
+            SizedBox(height: 8),
+            Text(
+              'Café Aroma',
+              style: TextStyle(
+                color: AppTheme.textLight,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );

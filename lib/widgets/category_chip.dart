@@ -5,11 +5,13 @@ import '../models/category.dart';
 
 class CategorySelectorBar extends StatelessWidget {
   final ProductCategory? selectedCategory;
+  final List<ProductCategory> categories;
   final ValueChanged<ProductCategory?> onSelected;
 
   const CategorySelectorBar({
     super.key,
     required this.selectedCategory,
+    required this.categories,
     required this.onSelected,
   });
 
@@ -28,8 +30,8 @@ class CategorySelectorBar extends StatelessWidget {
             isSelected: selectedCategory == null,
             onTap: () => onSelected(null),
           ),
-          ...ProductCategory.values.map((cat) {
-            final isSelected = selectedCategory == cat;
+          ...categories.map((cat) {
+            final isSelected = selectedCategory?.id == cat.id;
             return _buildChip(
               title: cat.nombre,
               icon: cat.icono,
@@ -58,43 +60,29 @@ class CategorySelectorBar extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeInOut,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: isSelected ? AppTheme.caramel : AppTheme.surfaceWhite,
+              color: isSelected ? AppTheme.primaryCoffee : AppTheme.surfaceWhite,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: isSelected ? AppTheme.caramel : AppTheme.borderLight,
-                width: 1.2,
+                color: isSelected ? AppTheme.primaryCoffee : AppTheme.borderLight,
+                width: 1,
               ),
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: AppTheme.caramel.withOpacity(0.35),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      )
-                    ]
-                  : [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.02),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      )
-                    ],
+              boxShadow: isSelected ? AppTheme.softShadow : [],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   icon,
-                  size: 18,
-                  color: isSelected ? Colors.white : AppTheme.textMedium,
+                  size: 16,
+                  color: isSelected ? AppTheme.caramelLight : AppTheme.textMedium,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Text(
                   title,
                   style: GoogleFonts.sora(
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                     color: isSelected ? Colors.white : AppTheme.textDark,
                   ),

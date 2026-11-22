@@ -85,7 +85,9 @@ class SizeSelector extends StatelessWidget {
                         children: [
                           Icon(
                             Icons.local_cafe_rounded,
-                            size: size.id == 'grande' ? 24 : (size.id == 'mediano' ? 20 : 18),
+                            size: size.nombre.toLowerCase().contains('grande')
+                                ? 24
+                                : (size.nombre.toLowerCase().contains('mediano') ? 20 : 18),
                             color: isSelected
                                 ? AppTheme.caramel
                                 : AppTheme.textMedium,

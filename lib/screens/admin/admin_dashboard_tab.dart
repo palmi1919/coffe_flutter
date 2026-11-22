@@ -26,9 +26,7 @@ class AdminDashboardTab extends StatelessWidget {
     final recentOrders = state.allOrders.take(5).toList();
 
     return RefreshIndicator(
-      onRefresh: () async {
-        // Al actualizar
-      },
+      onRefresh: () => state.loadData(),
       color: AppTheme.caramel,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
@@ -522,7 +520,7 @@ class _OrderTile extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      order.id,
+                      order.orderCode,
                       style: GoogleFonts.sora(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,

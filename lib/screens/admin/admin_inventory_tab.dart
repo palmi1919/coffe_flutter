@@ -80,18 +80,20 @@ class _AdminInventoryTabState extends State<AdminInventoryTab> {
               ),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 final newStock = int.tryParse(controller.text.trim());
                 if (newStock != null && newStock >= 0) {
                   final state = CoffeeShopScope.of(context);
-                  state.updateProductStock(product.id, newStock);
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Existencias de ${product.nombre} fijadas en $newStock'),
-                      duration: const Duration(seconds: 1),
-                    ),
-                  );
+                  await state.updateProductStock(product.id, newStock);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Existencias de ${product.nombre} fijadas en $newStock'),
+                        duration: const Duration(seconds: 1),
+                      ),
+                    );
+                  }
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -121,7 +123,7 @@ class _AdminInventoryTabState extends State<AdminInventoryTab> {
         final q = _searchQuery.toLowerCase();
         if (!p.nombre.toLowerCase().contains(q)) return false;
       }
-      if (_selectedCategory != null && p.categoria != _selectedCategory) {
+      if (_selectedCategory != null && p.fkCategoria != _selectedCategory!.id) {
         return false;
       }
       if (_filterStockStatus == 'low' && (p.existencias <= 0 || p.existencias > 5)) {
@@ -221,6 +223,7 @@ class _AdminInventoryTabState extends State<AdminInventoryTab> {
                     final product = filtered[index];
                     final isOutOfStock = product.existencias == 0;
                     final isLowStock = product.existencias > 0 && product.existencias <= 5;
+                    final mainImg = product.primaryImageUrl;
 
                     Color badgeColor = AppTheme.statusSuccess;
                     String badgeText = '${product.existencias} disp.';
@@ -254,18 +257,27 @@ class _AdminInventoryTabState extends State<AdminInventoryTab> {
                                 child: SizedBox(
                                   width: 48,
                                   height: 48,
-                                  child: CachedNetworkImage(
-                                    imageUrl: product.imagenUrl,
-                                    fit: BoxFit.cover,
-                                    errorWidget: (_, __, ___) => Container(
-                                      color: AppTheme.surfaceCream,
-                                      child: const Icon(
-                                        Icons.coffee_rounded,
-                                        color: AppTheme.cinnamon,
-                                        size: 24,
-                                      ),
-                                    ),
-                                  ),
+                                  child: mainImg.isNotEmpty
+                                      ? CachedNetworkImage(
+                                          imageUrl: mainImg,
+                                          fit: BoxFit.cover,
+                                          errorWidget: (_, __, ___) => Container(
+                                            color: AppTheme.surfaceCream,
+                                            child: const Icon(
+                                              Icons.coffee_rounded,
+                                              color: AppTheme.cinnamon,
+                                              size: 24,
+                                            ),
+                                          ),
+                                        )
+                                      : Container(
+                                          color: AppTheme.surfaceCream,
+                                          child: const Icon(
+                                            Icons.coffee_rounded,
+                                            color: AppTheme.cinnamon,
+                                            size: 24,
+                                          ),
+                                        ),
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -285,7 +297,7 @@ class _AdminInventoryTabState extends State<AdminInventoryTab> {
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      '${product.categoria.nombre} • ${product.estaActivo ? "Activo" : "Dado de baja"}',
+                                      '${product.categoria?.nombre ?? "Café"} • ${product.estaActivo ? "Activo" : "Dado de baja"}',
                                       style: GoogleFonts.sora(
                                         fontSize: 11,
                                         color: AppTheme.textLight,

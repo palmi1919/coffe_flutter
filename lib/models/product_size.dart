@@ -1,5 +1,5 @@
 class ProductSize {
-  final String id;
+  final int id;
   final String nombre;
   final String descripcionCorta;
   final double precioAdicional;
@@ -19,16 +19,37 @@ class ProductSize {
       };
 
   factory ProductSize.fromJson(Map<String, dynamic> json) {
+    Map<String, dynamic>? tamanoData;
+    if (json['tamano'] is Map<String, dynamic>) {
+      tamanoData = json['tamano'] as Map<String, dynamic>;
+    } else if (json['tamano'] is List && (json['tamano'] as List).isNotEmpty) {
+      tamanoData = (json['tamano'] as List).first as Map<String, dynamic>;
+    }
+
+    final idVal = json['pk_tamano'] as int? ??
+        (json['fk_tamano'] as int? ??
+            (tamanoData?['pk_tamano'] as int? ??
+                (json['id'] is int ? json['id'] as int : int.tryParse(json['id']?.toString() ?? '') ?? 1)));
+
+    final nomVal = tamanoData?['nom_tamano'] as String? ??
+        (json['nom_tamano'] as String? ?? (json['nombre'] as String? ?? 'Estándar'));
+
+    final descVal = tamanoData?['descripcion_corta'] as String? ??
+        (json['descripcion_corta'] as String? ?? (json['descripcionCorta'] as String? ?? ''));
+
+    final precioVal = (json['precio_adicional'] as num?)?.toDouble() ??
+        ((json['precioAdicional'] as num?)?.toDouble() ?? 0.0);
+
     return ProductSize(
-      id: json['id'] as String,
-      nombre: json['nombre'] as String,
-      descripcionCorta: json['descripcionCorta'] as String? ?? '',
-      precioAdicional: (json['precioAdicional'] as num?)?.toDouble() ?? 0.0,
+      id: idVal,
+      nombre: nomVal,
+      descripcionCorta: descVal,
+      precioAdicional: precioVal,
     );
   }
 
   ProductSize copyWith({
-    String? id,
+    int? id,
     String? nombre,
     String? descripcionCorta,
     double? precioAdicional,
@@ -41,43 +62,11 @@ class ProductSize {
     );
   }
 
-  static List<ProductSize> standardBeverageSizes() {
-    return const [
-      ProductSize(
-        id: 'chico',
-        nombre: 'Chico',
-        descripcionCorta: '8 oz / 240 ml',
-        precioAdicional: 0.0,
-      ),
-      ProductSize(
-        id: 'mediano',
-        nombre: 'Mediano',
-        descripcionCorta: '12 oz / 360 ml',
-        precioAdicional: 12.0,
-      ),
-      ProductSize(
-        id: 'grande',
-        nombre: 'Grande',
-        descripcionCorta: '16 oz / 480 ml',
-        precioAdicional: 22.0,
-      ),
-    ];
-  }
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ProductSize && runtimeType == other.runtimeType && id == other.id;
 
-  static List<ProductSize> standardFoodSizes() {
-    return const [
-      ProductSize(
-        id: 'individual',
-        nombre: 'Individual',
-        descripcionCorta: '1 pieza',
-        precioAdicional: 0.0,
-      ),
-      ProductSize(
-        id: 'doble',
-        nombre: 'Doble',
-        descripcionCorta: '2 piezas',
-        precioAdicional: 35.0,
-      ),
-    ];
-  }
+  @override
+  int get hashCode => id.hashCode;
 }

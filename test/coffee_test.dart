@@ -3,26 +3,29 @@ import 'package:coffe/models/category.dart';
 import 'package:coffe/models/product.dart';
 import 'package:coffe/models/product_size.dart';
 import 'package:coffe/models/cart_item.dart';
-import 'package:coffe/services/seed_data.dart';
 
 void main() {
-  group('Pruebas unitarias del modelo de Cafetería', () {
+  group('Pruebas unitarias del modelo de Cafetería con Supabase', () {
     test('Cálculo correcto de precios según el tamaño del café', () {
-      final product = Product(
-        id: 'test_1',
+      const product = Product(
+        id: 1,
         nombre: 'Capuchino artesanal',
         descripcion: 'Café de prueba',
         precioBase: 50.0,
-        categoria: ProductCategory.bebidasCalientes,
-        tamanos: ProductSize.standardBeverageSizes(),
+        categoria: ProductCategory(id: 1, nombre: 'Bebidas calientes'),
+        tamanos: [
+          ProductSize(id: 1, nombre: 'Chico', descripcionCorta: '8 oz', precioAdicional: 0),
+          ProductSize(id: 2, nombre: 'Mediano', descripcionCorta: '12 oz', precioAdicional: 12),
+          ProductSize(id: 3, nombre: 'Grande', descripcionCorta: '16 oz', precioAdicional: 22),
+        ],
         existencias: 10,
         imagenUrl: '',
         estaActivo: true,
       );
 
-      final chico = product.tamanos.firstWhere((t) => t.id == 'chico');
-      final mediano = product.tamanos.firstWhere((t) => t.id == 'mediano');
-      final grande = product.tamanos.firstWhere((t) => t.id == 'grande');
+      final chico = product.tamanos.firstWhere((t) => t.id == 1);
+      final mediano = product.tamanos.firstWhere((t) => t.id == 2);
+      final grande = product.tamanos.firstWhere((t) => t.id == 3);
 
       expect(product.precioConTamano(chico), 50.0);
       expect(product.precioConTamano(mediano), 62.0); // 50 + 12
@@ -30,19 +33,21 @@ void main() {
     });
 
     test('Cálculo de subtotal en elementos del carrito', () {
-      final product = Product(
-        id: 'test_2',
+      const product = Product(
+        id: 2,
         nombre: 'Latte frío',
         descripcion: 'Bebida fría',
         precioBase: 60.0,
-        categoria: ProductCategory.bebidasFrias,
-        tamanos: ProductSize.standardBeverageSizes(),
+        categoria: ProductCategory(id: 2, nombre: 'Bebidas frías'),
+        tamanos: [
+          ProductSize(id: 2, nombre: 'Mediano', descripcionCorta: '12 oz', precioAdicional: 12),
+        ],
         existencias: 5,
         imagenUrl: '',
         estaActivo: true,
       );
 
-      final mediano = product.tamanos.firstWhere((t) => t.id == 'mediano');
+      final mediano = product.tamanos.first;
       final item = CartItem(
         product: product,
         selectedSize: mediano,
@@ -55,13 +60,15 @@ void main() {
     });
 
     test('Validación de existencias y disponibilidad', () {
-      final availableProduct = Product(
-        id: 'p1',
+      const availableProduct = Product(
+        id: 3,
         nombre: 'Con stock',
         descripcion: '',
         precioBase: 40.0,
-        categoria: ProductCategory.panaderia,
-        tamanos: ProductSize.standardFoodSizes(),
+        categoria: ProductCategory(id: 3, nombre: 'Panadería'),
+        tamanos: [
+          ProductSize(id: 4, nombre: 'Individual', descripcionCorta: '1 pza', precioAdicional: 0),
+        ],
         existencias: 5,
         imagenUrl: '',
         estaActivo: true,
@@ -73,18 +80,6 @@ void main() {
       expect(availableProduct.estaDisponible, isTrue);
       expect(outOfStockProduct.estaDisponible, isFalse);
       expect(inactiveProduct.estaDisponible, isFalse);
-    });
-
-    test('Catálogo semilla contiene elementos válidos en todas las categorías', () {
-      final products = SeedData.getInitialProducts();
-      expect(products.isNotEmpty, isTrue);
-
-      final categoriesInSeed = products.map((p) => p.categoria).toSet();
-      expect(categoriesInSeed.contains(ProductCategory.bebidasCalientes), isTrue);
-      expect(categoriesInSeed.contains(ProductCategory.bebidasFrias), isTrue);
-      expect(categoriesInSeed.contains(ProductCategory.panaderia), isTrue);
-      expect(categoriesInSeed.contains(ProductCategory.postres), isTrue);
-      expect(categoriesInSeed.contains(ProductCategory.alimentos), isTrue);
     });
   });
 }

@@ -27,6 +27,7 @@ class ProductCard extends StatelessWidget {
 
     final isAvailable = product.estaDisponible;
     final isLowStock = product.existencias > 0 && product.existencias <= 5;
+    final mainImage = product.primaryImageUrl;
 
     return Container(
       decoration: BoxDecoration(
@@ -57,35 +58,28 @@ class ProductCard extends StatelessWidget {
                         child: SizedBox(
                           width: double.infinity,
                           height: double.infinity,
-                          child: CachedNetworkImage(
-                            imageUrl: product.imagenUrl,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              color: AppTheme.surfaceCream,
-                              child: const Center(
-                                child: SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      AppTheme.caramel,
+                          child: mainImage.isNotEmpty
+                              ? CachedNetworkImage(
+                                  imageUrl: mainImage,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => Container(
+                                    color: AppTheme.surfaceCream,
+                                    child: const Center(
+                                      child: SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(
+                                            AppTheme.caramel,
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ),
-                            ),
-                            errorWidget: (context, url, error) => Container(
-                              color: AppTheme.surfaceCream,
-                              child: const Center(
-                                child: Icon(
-                                  Icons.coffee_rounded,
-                                  size: 40,
-                                  color: AppTheme.cinnamon,
-                                ),
-                              ),
-                            ),
-                          ),
+                                  errorWidget: (context, url, error) => _buildPlaceholder(),
+                                )
+                              : _buildPlaceholder(),
                         ),
                       ),
                     ),
@@ -99,11 +93,11 @@ class ProductCard extends StatelessWidget {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: !product.tieneExistencias
-                              ? AppTheme.statusDanger.withOpacity(0.92)
+                          color: !isAvailable
+                              ? AppTheme.statusDanger.withOpacity(0.9)
                               : (isLowStock
-                                  ? AppTheme.statusWarning.withOpacity(0.92)
-                                  : AppTheme.espresso.withOpacity(0.8)),
+                                  ? AppTheme.statusWarning.withOpacity(0.9)
+                                  : AppTheme.primaryCoffee.withOpacity(0.85)),
                           borderRadius: BorderRadius.circular(8),
                           boxShadow: [
                             BoxShadow(
@@ -117,20 +111,20 @@ class ProductCard extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              !product.tieneExistencias
-                                  ? Icons.remove_circle_outline_rounded
+                              !isAvailable
+                                  ? Icons.cancel_outlined
                                   : (isLowStock
                                       ? Icons.warning_amber_rounded
-                                      : Icons.check_circle_outline_rounded),
-                              size: 11,
+                                      : Icons.check_circle_outline),
                               color: Colors.white,
+                              size: 11,
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              !product.tieneExistencias
+                              !isAvailable
                                   ? 'Agotado'
                                   : (isLowStock
-                                      ? 'Quedan ${product.existencias}'
+                                      ? 'Últimos ${product.existencias}'
                                       : '${product.existencias} disp.'),
                               style: GoogleFonts.sora(
                                 color: Colors.white,
@@ -208,7 +202,7 @@ class ProductCard extends StatelessWidget {
                               ),
                             ],
                           ),
-                          // Botón agregar o ver
+                          // Botón agregar rápido
                           Material(
                             color: isAvailable
                                 ? AppTheme.caramel
@@ -237,6 +231,29 @@ class ProductCard extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder() {
+    return Container(
+      color: AppTheme.surfaceCream,
+      child: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.coffee_rounded,
+              size: 38,
+              color: AppTheme.cinnamon,
+            ),
+            SizedBox(height: 4),
+            Text(
+              'Café Aroma',
+              style: TextStyle(fontSize: 10, color: AppTheme.textLight),
+            ),
+          ],
         ),
       ),
     );

@@ -43,7 +43,6 @@ create table producto (
   precio_base  numeric(10,2) not null,
   fk_categoria smallint references categoria(pk_categoria),
   existencias  integer not null default 0,
-  imagen_url   text,
   estatus      boolean not null default true
 );
 

@@ -16,7 +16,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _userController = TextEditingController(text: 'admin@cafe.com');
+  final _userController = TextEditingController(text: 'admin');
   final _passwordController = TextEditingController(text: 'admin123');
 
   UserRole _selectedRoleTab = UserRole.admin;
@@ -36,11 +36,11 @@ class _LoginScreenState extends State<LoginScreen> {
       _selectedRoleTab = role;
       _errorMessage = null;
       if (role == UserRole.admin) {
-        _userController.text = AuthService.adminEmail;
-        _passwordController.text = AuthService.adminPass;
+        _userController.text = 'admin';
+        _passwordController.text = 'admin123';
       } else {
-        _userController.text = AuthService.customerEmail;
-        _passwordController.text = AuthService.customerPass;
+        _userController.text = 'cliente';
+        _passwordController.text = 'cliente123';
       }
     });
   }
@@ -53,54 +53,53 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    final user = AuthService.authenticate(
-      identifier: _userController.text,
-      password: _passwordController.text,
-    );
-
-    if (!mounted) return;
-
-    if (user != null) {
-      final state = CoffeeShopScope.of(context);
-      await state.login(user);
+    try {
+      final user = await AuthService.authenticate(
+        identifier: _userController.text,
+        password: _passwordController.text,
+      );
 
       if (!mounted) return;
 
-      if (user.isAdmin) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const AdminMainScreen()),
-        );
+      if (user != null) {
+        final state = CoffeeShopScope.of(context);
+        await state.login(user);
+
+        if (!mounted) return;
+
+        if (user.isAdmin) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const AdminMainScreen()),
+          );
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+          );
+        }
       } else {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
+        setState(() {
+          _errorMessage =
+              'Usuario o contraseña incorrectos, o cuenta inactiva. Verifica tus datos en Supabase.';
+          _isLoading = false;
+        });
       }
-    } else {
+    } catch (e) {
+      if (!mounted) return;
       setState(() {
-        _errorMessage = 'Credenciales incorrectas. Revisa tu usuario y contraseña.';
+        _errorMessage =
+            'Error al conectar con Supabase: ${e.toString().replaceAll('Exception:', '')}';
         _isLoading = false;
       });
     }
   }
 
-  Future<void> _quickLogin(AppUser user) async {
-    setState(() => _isLoading = true);
-    final state = CoffeeShopScope.of(context);
-    await state.login(user);
-
-    if (!mounted) return;
-
-    if (user.isAdmin) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const AdminMainScreen()),
-      );
-    } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
-    }
+  void _quickFillAndLogin(String user, String pass, UserRole role) {
+    setState(() {
+      _selectedRoleTab = role;
+      _userController.text = user;
+      _passwordController.text = pass;
+    });
+    _handleLogin();
   }
 
   @override
@@ -157,7 +156,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Acceso al Sistema y Menú Digital',
+                    'Acceso al Sistema y Menú Digital (Supabase)',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.sora(
                       fontSize: 13,
@@ -294,8 +293,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 4),
                           Text(
                             _selectedRoleTab == UserRole.admin
-                                ? 'Control de catálogo, inventario y pedidos.'
-                                : 'Elige tu bebida y la cantidad que desees.',
+                                ? 'Autenticación contra tabla usuario (fk_tipo_usu = 1)'
+                                : 'Autenticación contra tabla usuario (fk_tipo_usu = 2)',
                             style: GoogleFonts.sora(
                               fontSize: 12,
                               color: AppTheme.textLight,
@@ -336,9 +335,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 14),
                           ],
 
-                          // Campo Usuario / Email
+                          // Campo Usuario
                           Text(
-                            'Usuario o Correo',
+                            'Nombre de Usuario',
                             style: GoogleFonts.sora(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -348,13 +347,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 6),
                           TextFormField(
                             controller: _userController,
-                            keyboardType: TextInputType.emailAddress,
+                            keyboardType: TextInputType.text,
                             decoration: InputDecoration(
                               hintText: _selectedRoleTab == UserRole.admin
-                                  ? 'admin@cafe.com'
-                                  : 'cliente@cafe.com',
+                                  ? 'admin'
+                                  : 'cliente',
                               prefixIcon: const Icon(
-                                Icons.alternate_email_rounded,
+                                Icons.person_outline_rounded,
                                 color: AppTheme.caramel,
                                 size: 20,
                               ),
@@ -379,7 +378,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             validator: (val) {
                               if (val == null || val.trim().isEmpty) {
-                                return 'Ingresa tu usuario o correo';
+                                return 'Ingresa tu nombre de usuario';
                               }
                               return null;
                             },
@@ -491,9 +490,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 22),
 
-                  // Accesos Rápidos para Evaluación y Pruebas
+                  // Accesos Rápidos
                   Text(
-                    'ACCESOS RÁPIDOS DE PRUEBA (1-CLICK)',
+                    'USUARIOS DE PRUEBA EN SUPABASE',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.sora(
                       fontSize: 11,
@@ -507,14 +506,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () => _quickLogin(AuthService.quickAdminUser),
+                          onPressed: _isLoading
+                              ? null
+                              : () => _quickFillAndLogin('admin', 'admin123', UserRole.admin),
                           icon: const Icon(
                             Icons.admin_panel_settings_rounded,
                             size: 16,
                             color: AppTheme.primaryCoffee,
                           ),
                           label: Text(
-                            'Demo Admin',
+                            'Admin (admin)',
                             style: GoogleFonts.sora(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -534,14 +535,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () => _quickLogin(AuthService.quickCustomerUser),
+                          onPressed: _isLoading
+                              ? null
+                              : () => _quickFillAndLogin('cliente', 'cliente123', UserRole.customer),
                           icon: const Icon(
                             Icons.local_cafe_rounded,
                             size: 16,
                             color: AppTheme.caramel,
                           ),
                           label: Text(
-                            'Demo Cliente',
+                            'Cliente (cliente)',
                             style: GoogleFonts.sora(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -570,7 +573,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        'Admin: admin / admin123  •  Cliente: cliente / cliente123',
+                        'admin / admin123  •  cliente / cliente123',
                         style: GoogleFonts.sora(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w500,

@@ -52,6 +52,10 @@ app.*.map.json
 .env.*
 
 .codigo_db.sql
-
+.datos_prueba.sql
 
 .api_keys.text
+
+# Archivos de configuración de Supabase y credenciales
+api_keys.text
+lib/config/supabase_config.dart

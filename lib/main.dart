@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/app_theme.dart';
+import 'config/supabase_config.dart';
 import 'screens/admin/add_product_screen.dart';
 import 'screens/admin/admin_main_screen.dart';
 import 'screens/admin/edit_products_screen.dart';
@@ -22,7 +24,13 @@ void main() async {
     ),
   );
 
-  // Inicializar almacenamiento local con persistencia y catálogo base
+  // Inicializar Supabase con URL del proyecto y Publishable Key
+  await Supabase.initialize(
+    url: SupabaseConfig.url,
+    anonKey: SupabaseConfig.publishableKey,
+  );
+
+  // Inicializar servicio de almacenamiento local para sesión
   final storageService = await LocalStorageService.init();
   final coffeeState = CoffeeShopState(storageService);
 
@@ -44,7 +52,6 @@ class CoffeeApp extends StatelessWidget {
         theme: AppTheme.lightTheme,
         // Pantalla inicial según el estado de autenticación y rol
         home: _getInitialScreen(state),
-        // Rutas nombradas para navegación en el sistema
         routes: {
           '/login': (context) => const LoginScreen(),
           '/home': (context) => const HomeScreen(),

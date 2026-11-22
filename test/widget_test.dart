@@ -17,15 +17,15 @@ void main() {
 
     // 1. Debe mostrar pantalla de Login inicialmente
     expect(find.text('Café Aroma'), findsWidgets);
-    expect(find.text('Acceso al Sistema y Menú Digital'), findsOneWidget);
-    expect(find.text('Demo Cliente'), findsOneWidget);
-    expect(find.text('Demo Admin'), findsOneWidget);
+    expect(find.text('Acceso al Sistema y Menú Digital (Supabase)'), findsOneWidget);
+    expect(find.text('Cliente (cliente)'), findsOneWidget);
+    expect(find.text('Admin (admin)'), findsOneWidget);
 
     // 2. Probar acceso como Cliente
     await state.login(const AppUser(
-      id: 'c1',
+      id: 2,
+      username: 'cliente',
       name: 'Cliente Demo',
-      email: 'cliente@cafe.com',
       role: UserRole.customer,
     ));
     await tester.pumpWidget(CoffeeApp(state: state));
@@ -36,9 +36,9 @@ void main() {
 
     // 3. Probar acceso como Administrador
     await state.login(const AppUser(
-      id: 'a1',
+      id: 1,
+      username: 'admin',
       name: 'Administrador Demo',
-      email: 'admin@cafe.com',
       role: UserRole.admin,
     ));
     await tester.pumpWidget(CoffeeApp(state: state));

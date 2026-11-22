@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/app_theme.dart';
 import '../../models/product.dart';
@@ -57,7 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final state = CoffeeShopScope.of(context);
     final size = product.tamanos.isNotEmpty
         ? product.tamanos.first
-        : ProductSize.standardBeverageSizes().first;
+        : const ProductSize(id: 1, nombre: 'Estándar', descripcionCorta: '', precioAdicional: 0);
 
     final added = state.addToCart(product, size, 1);
     if (added) {
@@ -126,264 +125,319 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         },
       ),
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // Banner de aviso si un administrador está en la vista de cliente
-          if (state.isAdmin)
-            SliverToBoxAdapter(
-              child: Container(
-                margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: AppTheme.caramel.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppTheme.caramel.withOpacity(0.3)),
+      body: RefreshIndicator(
+        onRefresh: () => state.loadData(),
+        color: AppTheme.caramel,
+        child: state.isLoading
+            ? const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.caramel),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.admin_panel_settings_rounded,
-                      color: AppTheme.caramel,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Modo Administrador (Vista de Menú)',
-                        style: GoogleFonts.sora(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.primaryCoffee,
-                        ),
-                      ),
-                    ),
-                    InkWell(
-                      onTap: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AdminMainScreen(),
-                          ),
-                        );
-                      },
+              )
+            : CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                slivers: [
+                  // Alerta de error si falló conexión
+                  if (state.errorMessage != null)
+                    SliverToBoxAdapter(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        margin: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: AppTheme.caramel,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'Ir al Panel Admin',
-                          style: GoogleFonts.sora(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                          color: AppTheme.statusDanger.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppTheme.statusDanger.withOpacity(0.3),
                           ),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          // Banner de bienvenida y buscador
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          AppTheme.espresso,
-                          AppTheme.primaryCoffee,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: AppTheme.cardShadow,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        child: Row(
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppTheme.caramel.withOpacity(0.3),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
+                            const Icon(
+                              Icons.cloud_off_rounded,
+                              color: AppTheme.statusDanger,
+                              size: 24,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
                               child: Text(
-                                'Grano 100% mexicano',
+                                state.errorMessage!,
                                 style: GoogleFonts.sora(
-                                  color: AppTheme.caramelLight,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                  color: AppTheme.statusDanger,
                                 ),
                               ),
                             ),
-                            const Icon(
-                              Icons.local_fire_department_rounded,
-                              color: AppTheme.caramelLight,
-                              size: 20,
+                            TextButton(
+                              onPressed: () => state.loadData(),
+                              child: const Text('Reintentar'),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'El arte del buen café en tus manos',
-                          style: GoogleFonts.sora(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                            height: 1.25,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Selecciona tu bebida favorita, personaliza su tamaño y recíbela recién hecha.',
-                          style: GoogleFonts.sora(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                            color: AppTheme.borderLight,
-                            height: 1.35,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-                  const SizedBox(height: 16),
-
-                  // Barra de búsqueda de productos
-                  TextField(
-                    controller: _searchController,
-                    onChanged: (val) => state.setSearchQuery(val),
-                    decoration: InputDecoration(
-                      hintText: 'Buscar café, postre o alimento...',
-                      prefixIcon: const Icon(
-                        Icons.search_rounded,
-                        color: AppTheme.caramel,
                       ),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(
-                                Icons.clear_rounded,
-                                color: AppTheme.textLight,
-                                size: 20,
+                    ),
+
+                  // Banner de aviso si un administrador está en la vista de cliente
+                  if (state.isAdmin)
+                    SliverToBoxAdapter(
+                      child: Container(
+                        margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.caramel.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppTheme.caramel.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.admin_panel_settings_rounded,
+                              color: AppTheme.caramel,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Modo Administrador (Vista de Menú)',
+                                style: GoogleFonts.sora(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.primaryCoffee,
+                                ),
                               ),
-                              onPressed: () {
-                                _searchController.clear();
-                                state.setSearchQuery('');
+                            ),
+                            InkWell(
+                              onTap: () {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const AdminMainScreen(),
+                                  ),
+                                );
                               },
-                            )
-                          : null,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.caramel,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Ir al Panel Admin',
+                                  style: GoogleFonts.sora(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ),
 
-          // Selector horizontal de categorías
-          SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Categorías',
-                        style: GoogleFonts.sora(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.textDark,
-                        ),
-                      ),
-                      Text(
-                        '${products.length} disponibles',
-                        style: GoogleFonts.sora(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: AppTheme.textLight,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                CategorySelectorBar(
-                  selectedCategory: state.selectedCategory,
-                  onSelected: (cat) => state.setSelectedCategory(cat),
-                ),
-                const SizedBox(height: 18),
-              ],
-            ),
-          ),
-
-          // Grid de productos o vista de estado vacío
-          if (products.isEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: EmptyStateView(
-                icon: Icons.coffee_rounded,
-                title: 'No se encontraron productos',
-                message:
-                    'Intenta buscar con otro término o selecciona una categoría diferente en el menú.',
-                buttonText: 'Ver todas las categorías',
-                onButtonPressed: () {
-                  _searchController.clear();
-                  state.setSearchQuery('');
-                  state.setSelectedCategory(null);
-                },
-              ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 0.67,
-                  crossAxisSpacing: 14,
-                  mainAxisSpacing: 14,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final product = products[index];
-                    return ProductCard(
-                      product: product,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ProductDetailScreen(
-                              productId: product.id,
+                  // Banner de bienvenida y buscador
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [
+                                  AppTheme.espresso,
+                                  AppTheme.primaryCoffee,
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: AppTheme.cardShadow,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.caramel.withOpacity(0.3),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        'Grano 100% mexicano',
+                                        style: GoogleFonts.sora(
+                                          color: AppTheme.caramelLight,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                    const Icon(
+                                      Icons.local_fire_department_rounded,
+                                      color: AppTheme.caramelLight,
+                                      size: 20,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'El arte del buen café en tus manos',
+                                  style: GoogleFonts.sora(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    height: 1.25,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Selecciona tu bebida favorita, personaliza su tamaño y recíbela recién hecha.',
+                                  style: GoogleFonts.sora(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w400,
+                                    color: AppTheme.surfaceCream.withOpacity(0.85),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        );
-                      },
-                      onQuickAdd: () => _onQuickAdd(context, product),
-                    ).animate().fadeIn(duration: 300.ms, delay: (index * 40).ms);
-                  },
-                  childCount: products.length,
-                ),
+                          const SizedBox(height: 16),
+
+                          // Barra de búsqueda de productos
+                          TextField(
+                            controller: _searchController,
+                            onChanged: (val) => state.setSearchQuery(val),
+                            decoration: InputDecoration(
+                              hintText: 'Buscar café, postre o alimento...',
+                              prefixIcon: const Icon(
+                                Icons.search_rounded,
+                                color: AppTheme.caramel,
+                              ),
+                              suffixIcon: _searchController.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(
+                                        Icons.clear_rounded,
+                                        color: AppTheme.textLight,
+                                        size: 20,
+                                      ),
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        state.setSearchQuery('');
+                                      },
+                                    )
+                                  : null,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Selector horizontal de categorías desde Supabase
+                  SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Categorías',
+                                style: GoogleFonts.sora(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.textDark,
+                                ),
+                              ),
+                              Text(
+                                '${products.length} disponibles',
+                                style: GoogleFonts.sora(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppTheme.textLight,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        CategorySelectorBar(
+                          selectedCategory: state.selectedCategory,
+                          categories: state.categories,
+                          onSelected: (cat) => state.setSelectedCategory(cat),
+                        ),
+                        const SizedBox(height: 18),
+                      ],
+                    ),
+                  ),
+
+                  // Grid de productos o vista de estado vacío
+                  if (products.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: EmptyStateView(
+                        icon: Icons.coffee_rounded,
+                        title: 'No se encontraron productos',
+                        message:
+                            'Intenta buscar con otro término o selecciona una categoría diferente en el menú.',
+                        buttonText: 'Ver todas las categorías',
+                        onButtonPressed: () {
+                          _searchController.clear();
+                          state.setSearchQuery('');
+                          state.setSelectedCategory(null);
+                        },
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      sliver: SliverGrid(
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.67,
+                          crossAxisSpacing: 14,
+                          mainAxisSpacing: 14,
+                        ),
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final product = products[index];
+                            return ProductCard(
+                              product: product,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ProductDetailScreen(
+                                      productId: product.id,
+                                    ),
+                                  ),
+                                );
+                              },
+                              onQuickAdd: () => _onQuickAdd(context, product),
+                            );
+                          },
+                          childCount: products.length,
+                        ),
+                      ),
+                    ),
+                ],
               ),
-            ),
-        ],
       ),
     );
   }

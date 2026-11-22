@@ -1,17 +1,21 @@
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import '../models/category.dart';
+import '../models/cart_item.dart';
 import '../models/order.dart';
 import '../models/product.dart';
+import '../models/product_image.dart';
 import '../models/product_size.dart';
-import '../models/cart_item.dart';
 import '../models/user.dart';
 import '../services/local_storage_service.dart';
+import '../services/supabase_db_service.dart';
 
 class CoffeeShopState extends ChangeNotifier {
   final LocalStorageService _storageService;
 
   List<Product> _products = [];
+  List<ProductCategory> _categories = [];
+  List<ProductSize> _masterSizes = [];
   List<CoffeeOrder> _orders = [];
   final List<CartItem> _cartItems = [];
 
@@ -19,12 +23,17 @@ class CoffeeShopState extends ChangeNotifier {
   ProductCategory? _selectedCategory;
   String _searchQuery = '';
   bool _isLoading = true;
+  String? _errorMessage;
+  String? _lastOrderError;
 
   CoffeeShopState(this._storageService) {
-    _loadInitialData();
+    _currentUser = _storageService.loadUser();
+    loadData();
   }
 
   bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
+  String? get lastOrderError => _lastOrderError;
   AppUser? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
   bool get isAdmin => _currentUser?.isAdmin ?? false;
@@ -33,13 +42,15 @@ class CoffeeShopState extends ChangeNotifier {
   String get searchQuery => _searchQuery;
 
   List<Product> get allProducts => List.unmodifiable(_products);
+  List<ProductCategory> get categories => List.unmodifiable(_categories);
+  List<ProductSize> get masterSizes => List.unmodifiable(_masterSizes);
   List<CoffeeOrder> get allOrders => List.unmodifiable(_orders);
 
   /// Catálogo visible para el cliente (únicamente productos con estatus activo)
   List<Product> get customerMenuProducts {
     return _products.where((p) {
       if (!p.estaActivo) return false;
-      if (_selectedCategory != null && p.categoria != _selectedCategory) {
+      if (_selectedCategory != null && p.fkCategoria != _selectedCategory!.id) {
         return false;
       }
       if (_searchQuery.trim().isNotEmpty) {
@@ -52,15 +63,15 @@ class CoffeeShopState extends ChangeNotifier {
     }).toList();
   }
 
-  /// Lista de productos para la pantalla de edición del administrador
+  /// Lista de productos para la pantalla de administración
   List<Product> get adminProducts {
     if (_searchQuery.trim().isEmpty) {
       return List.unmodifiable(_products);
     }
     final query = _searchQuery.toLowerCase().trim();
     return _products.where((p) {
-      return p.nombre.toLowerCase().contains(query) ||
-          p.categoria.nombre.toLowerCase().contains(query);
+      final matchCat = p.categoria?.nombre.toLowerCase().contains(query) ?? false;
+      return p.nombre.toLowerCase().contains(query) || matchCat;
     }).toList();
   }
 
@@ -74,7 +85,6 @@ class CoffeeShopState extends ChangeNotifier {
     return _cartItems.fold(0.0, (sum, item) => sum + item.subtotal);
   }
 
-  /// Total de la compra en pesos mexicanos (IVA incluido)
   double get cartTotal => cartSubtotal;
 
   // ==========================================
@@ -100,12 +110,48 @@ class CoffeeShopState extends ChangeNotifier {
   int get outOfStockProductsCount =>
       _products.where((p) => p.existencias == 0).length;
 
-  void _loadInitialData() {
-    _products = _storageService.loadProducts();
-    _orders = _storageService.loadOrders();
-    _currentUser = _storageService.loadUser();
-    _isLoading = false;
+  // ==========================================
+  // CARGA DE DATOS DESDE SUPABASE
+  // ==========================================
+  Future<void> loadData() async {
+    _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
+
+    try {
+      final fetchedCategories = await SupabaseDbService.fetchCategories();
+      final fetchedSizes = await SupabaseDbService.fetchAllMasterSizes();
+      final fetchedProducts = await SupabaseDbService.fetchProducts();
+
+      _categories = fetchedCategories;
+      _masterSizes = fetchedSizes;
+      _products = fetchedProducts;
+
+      await loadOrders();
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error al cargar datos en CoffeeShopState: $e');
+      _errorMessage = 'No se pudo conectar a la base de datos de Supabase. Revisa tu conexión e intenta de nuevo.';
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadOrders() async {
+    try {
+      if (_currentUser == null) {
+        _orders = [];
+        return;
+      }
+      if (_currentUser!.isAdmin) {
+        _orders = await SupabaseDbService.fetchOrders();
+      } else {
+        _orders = await SupabaseDbService.fetchOrders(userId: _currentUser!.id);
+      }
+    } catch (e) {
+      debugPrint('Error al cargar pedidos: $e');
+    }
   }
 
   // ==========================================
@@ -114,12 +160,14 @@ class CoffeeShopState extends ChangeNotifier {
   Future<void> login(AppUser user) async {
     _currentUser = user;
     await _storageService.saveUser(user);
+    await loadOrders();
     notifyListeners();
   }
 
   Future<void> logout() async {
     _currentUser = null;
     _cartItems.clear();
+    _orders = [];
     await _storageService.saveUser(null);
     notifyListeners();
   }
@@ -134,7 +182,7 @@ class CoffeeShopState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Product? findProductById(String id) {
+  Product? findProductById(int id) {
     try {
       return _products.firstWhere((p) => p.id == id);
     } catch (_) {
@@ -145,16 +193,13 @@ class CoffeeShopState extends ChangeNotifier {
   // ==========================================
   // OPERACIONES DEL CARRITO
   // ==========================================
-
-  /// Cantidad actual de un producto (cualquier tamaño) en el carrito
-  int getQuantityInCart(String productId) {
+  int getQuantityInCart(int productId) {
     return _cartItems
         .where((item) => item.product.id == productId)
         .fold(0, (sum, item) => sum + item.quantity);
   }
 
-  /// Existencias restantes disponibles tomando en cuenta lo que ya está en el carrito
-  int getAvailableStockForProduct(String productId) {
+  int getAvailableStockForProduct(int productId) {
     final product = findProductById(productId);
     if (product == null) return 0;
     final inCart = getQuantityInCart(productId);
@@ -162,7 +207,6 @@ class CoffeeShopState extends ChangeNotifier {
     return remaining > 0 ? remaining : 0;
   }
 
-  /// Agrega un producto con un tamaño específico al carrito
   bool addToCart(Product product, ProductSize size, int quantityToAdd) {
     final liveProduct = findProductById(product.id) ?? product;
 
@@ -194,7 +238,6 @@ class CoffeeShopState extends ChangeNotifier {
     return true;
   }
 
-  /// Incrementa en 1 la cantidad de un artículo en el carrito
   bool incrementCartItem(String cartItemId) {
     final index = _cartItems.indexWhere((item) => item.id == cartItemId);
     if (index < 0) return false;
@@ -212,7 +255,6 @@ class CoffeeShopState extends ChangeNotifier {
     return true;
   }
 
-  /// Disminuye en 1 la cantidad; si llega a 0 se elimina
   void decrementCartItem(String cartItemId) {
     final index = _cartItems.indexWhere((item) => item.id == cartItemId);
     if (index < 0) return;
@@ -225,159 +267,218 @@ class CoffeeShopState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Elimina un artículo del carrito
   void removeFromCart(String cartItemId) {
     _cartItems.removeWhere((item) => item.id == cartItemId);
     notifyListeners();
   }
 
-  /// Vacía por completo el carrito
   void clearCart() {
     _cartItems.clear();
     notifyListeners();
   }
 
-  /// Confirma el pedido: descuenta existencias en la base de datos,
-  /// registra la orden en el historial del sistema y vacía el carrito.
+  // ==========================================
+  // CONFIRMACIÓN DE PEDIDO EN SUPABASE
+  // ==========================================
   Future<CoffeeOrder?> placeOrder() async {
-    if (_cartItems.isEmpty) return null;
+    _lastOrderError = null;
+    if (_cartItems.isEmpty) {
+      _lastOrderError = 'El carrito está vacío.';
+      return null;
+    }
+    if (_currentUser == null) {
+      _lastOrderError = 'Debes iniciar sesión para realizar un pedido.';
+      return null;
+    }
 
-    // Verificar existencias
+    // Verificar existencias locales
     for (final item in _cartItems) {
       final product = findProductById(item.product.id);
-      if (product == null || product.existencias < item.quantity) {
+      if (product == null) {
+        _lastOrderError =
+            'El producto "${item.product.nombre}" ya no está disponible en el menú.';
+        return null;
+      }
+      if (product.existencias < item.quantity) {
+        _lastOrderError =
+            'No hay suficientes existencias de "${item.product.nombre}" (disponibles: ${product.existencias}).';
         return null;
       }
     }
 
-    // Descontar existencias de los productos
-    for (final item in _cartItems) {
-      final productIndex =
-          _products.indexWhere((p) => p.id == item.product.id);
-      if (productIndex >= 0) {
-        final current = _products[productIndex];
-        final newStock = current.existencias - item.quantity;
-        _products[productIndex] = current.copyWith(
-          existencias: newStock < 0 ? 0 : newStock,
-        );
-      }
-    }
+    try {
+      final order = await SupabaseDbService.createOrder(
+        userId: _currentUser!.id,
+        cartItems: _cartItems,
+        total: cartTotal,
+      );
 
-    final orderId = 'CA-${1000 + Random().nextInt(9000)}';
-    final orderSummaries =
-        _cartItems.map((ci) => OrderProductSummary.fromCartItem(ci)).toList();
-    final totalPaid = cartTotal;
+      _orders.insert(0, order);
 
-    final order = CoffeeOrder(
-      id: orderId,
-      customerName: _currentUser?.name ?? 'Cliente Mostrador',
-      customerEmail: _currentUser?.email ?? 'cliente@cafe.com',
-      date: DateTime.now(),
-      items: orderSummaries,
-      total: totalPaid,
-      status: OrderStatus.pendiente,
-    );
-
-    _orders.insert(0, order);
-
-    // Guardar productos y órdenes actualizadas
-    await _storageService.saveProducts(_products);
-    await _storageService.saveOrders(_orders);
-
-    // Vaciar carrito
-    _cartItems.clear();
-    notifyListeners();
-    return order;
-  }
-
-  // ==========================================
-  // OPERACIONES DEL ADMINISTRADOR
-  // ==========================================
-
-  /// Registra un nuevo producto en la base de datos local
-  Future<void> addProduct(Product newProduct) async {
-    _products.insert(0, newProduct);
-    await _storageService.saveProducts(_products);
-    notifyListeners();
-  }
-
-  /// Actualiza los datos de un producto existente
-  Future<void> updateProduct(Product updatedProduct) async {
-    final index = _products.indexWhere((p) => p.id == updatedProduct.id);
-    if (index >= 0) {
-      _products[index] = updatedProduct;
-
-      // Actualizar referencias dentro del carrito si existiese
-      for (var i = 0; i < _cartItems.length; i++) {
-        if (_cartItems[i].product.id == updatedProduct.id) {
-          _cartItems[i] = _cartItems[i].copyWith(product: updatedProduct);
+      // Descontar existencias en memoria local
+      for (final item in _cartItems) {
+        final pIdx = _products.indexWhere((p) => p.id == item.product.id);
+        if (pIdx >= 0) {
+          final cur = _products[pIdx];
+          final nStock = max(0, cur.existencias - item.quantity);
+          _products[pIdx] = cur.copyWith(existencias: nStock);
         }
       }
 
-      await _storageService.saveProducts(_products);
+      _cartItems.clear();
       notifyListeners();
+      return order;
+    } catch (e) {
+      debugPrint('Error al registrar pedido en Supabase: $e');
+      _lastOrderError = e.toString();
+      return null;
     }
   }
 
-  /// Modifica directamente las existencias de un producto
-  Future<void> updateProductStock(String productId, int newStock) async {
-    final index = _products.indexWhere((p) => p.id == productId);
-    if (index >= 0) {
-      final updated = _products[index].copyWith(
-        existencias: newStock < 0 ? 0 : newStock,
+  // ==========================================
+  // OPERACIONES DEL ADMINISTRADOR EN SUPABASE
+  // ==========================================
+  Future<void> addProduct({
+    required String nombre,
+    required String descripcion,
+    required double precioBase,
+    required int categoriaId,
+    required int existencias,
+    required List<ProductSize> tamanos,
+    required List<Uint8List> newImagesBytes,
+    int? principalImageIndex,
+  }) async {
+    try {
+      final newProd = await SupabaseDbService.createProduct(
+        nombre: nombre,
+        descripcion: descripcion,
+        precioBase: precioBase,
+        categoriaId: categoriaId,
+        existencias: existencias,
+        tamanos: tamanos,
+        newImagesBytes: newImagesBytes,
+        principalImageIndex: principalImageIndex,
       );
-      _products[index] = updated;
-      await _storageService.saveProducts(_products);
+
+      _products.insert(0, newProd);
       notifyListeners();
+    } catch (e) {
+      debugPrint('Error al agregar producto: $e');
+      rethrow;
     }
   }
 
-  /// Incrementa o decrementa existencias
-  Future<void> adjustProductStock(String productId, int delta) async {
-    final index = _products.indexWhere((p) => p.id == productId);
-    if (index >= 0) {
-      final current = _products[index];
-      final newStock = max(0, current.existencias + delta);
-      _products[index] = current.copyWith(existencias: newStock);
-      await _storageService.saveProducts(_products);
+  Future<void> updateProduct({
+    required int productId,
+    required String nombre,
+    required String descripcion,
+    required double precioBase,
+    required int categoriaId,
+    required int existencias,
+    required bool estaActivo,
+    required List<ProductSize> tamanos,
+    required List<ProductImage> existingImages,
+    required List<Uint8List> newImagesBytes,
+    int? principalExistingImageId,
+    int? principalNewImageIndex,
+    required List<int> deleteImageIds,
+  }) async {
+    try {
+      final updated = await SupabaseDbService.updateProduct(
+        productId: productId,
+        nombre: nombre,
+        descripcion: descripcion,
+        precioBase: precioBase,
+        categoriaId: categoriaId,
+        existencias: existencias,
+        estaActivo: estaActivo,
+        tamanos: tamanos,
+        existingImages: existingImages,
+        newImagesBytes: newImagesBytes,
+        principalExistingImageId: principalExistingImageId,
+        principalNewImageIndex: principalNewImageIndex,
+        deleteImageIds: deleteImageIds,
+      );
+
+      final idx = _products.indexWhere((p) => p.id == productId);
+      if (idx >= 0) {
+        _products[idx] = updated;
+      }
+
+      // Actualizar referencias dentro del carrito
+      for (var i = 0; i < _cartItems.length; i++) {
+        if (_cartItems[i].product.id == productId) {
+          _cartItems[i] = _cartItems[i].copyWith(product: updated);
+        }
+      }
+
       notifyListeners();
+    } catch (e) {
+      debugPrint('Error al editar producto: $e');
+      rethrow;
     }
   }
 
-  /// Cambia el estatus del producto (activo / dado de baja) sin eliminarlo
-  Future<void> toggleProductStatus(String productId) async {
-    final index = _products.indexWhere((p) => p.id == productId);
-    if (index >= 0) {
-      final current = _products[index];
+  Future<void> updateProductStock(int productId, int newStock) async {
+    try {
+      await SupabaseDbService.updateStock(productId, newStock);
+      final idx = _products.indexWhere((p) => p.id == productId);
+      if (idx >= 0) {
+        _products[idx] = _products[idx].copyWith(existencias: max(0, newStock));
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error al actualizar existencias: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> adjustProductStock(int productId, int delta) async {
+    final idx = _products.indexWhere((p) => p.id == productId);
+    if (idx >= 0) {
+      final newStock = max(0, _products[idx].existencias + delta);
+      await updateProductStock(productId, newStock);
+    }
+  }
+
+  Future<void> toggleProductStatus(int productId) async {
+    final idx = _products.indexWhere((p) => p.id == productId);
+    if (idx >= 0) {
+      final current = _products[idx];
       final newStatus = !current.estaActivo;
-      _products[index] = current.copyWith(estaActivo: newStatus);
+      await SupabaseDbService.toggleProductStatus(productId, current.estaActivo);
+      _products[idx] = current.copyWith(estaActivo: newStatus);
 
-      // Si se da de baja, remover del carrito
       if (!newStatus) {
         _cartItems.removeWhere((item) => item.product.id == productId);
       }
-
-      await _storageService.saveProducts(_products);
       notifyListeners();
     }
   }
 
-  /// Actualiza el estatus de una orden (Pendiente, En preparación, Entregado, etc.)
-  Future<void> updateOrderStatus(String orderId, OrderStatus newStatus) async {
-    final index = _orders.indexWhere((o) => o.id == orderId);
-    if (index >= 0) {
-      _orders[index] = _orders[index].copyWith(status: newStatus);
-      await _storageService.saveOrders(_orders);
+  Future<void> deleteProduct(int productId) async {
+    try {
+      await SupabaseDbService.deleteProduct(productId);
+      _products.removeWhere((p) => p.id == productId);
+      _cartItems.removeWhere((item) => item.product.id == productId);
       notifyListeners();
+    } catch (e) {
+      debugPrint('Error al eliminar producto: $e');
+      rethrow;
     }
   }
 
-  /// Restaura los datos del catálogo inicial para demostración académica
-  Future<void> restoreSeedData() async {
-    await _storageService.resetToSeedData();
-    _products = _storageService.loadProducts();
-    _orders = _storageService.loadOrders();
-    _cartItems.clear();
-    notifyListeners();
+  Future<void> updateOrderStatus(int orderId, OrderStatus newStatus) async {
+    try {
+      await SupabaseDbService.updateOrderStatus(orderId, newStatus.id);
+      final idx = _orders.indexWhere((o) => o.id == orderId);
+      if (idx >= 0) {
+        _orders[idx] = _orders[idx].copyWith(status: newStatus);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error al actualizar estado del pedido: $e');
+      rethrow;
+    }
   }
 }

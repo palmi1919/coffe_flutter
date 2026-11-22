@@ -1,53 +1,49 @@
 import 'package:flutter/material.dart';
 
-enum ProductCategory {
-  bebidasCalientes(
-    id: 'calientes',
-    nombre: 'Bebidas calientes',
-    icono: Icons.local_cafe_rounded,
-    descripcion: 'Espressos, capuchinos, lattes y chocolates artesanales.',
-  ),
-  bebidasFrias(
-    id: 'frias',
-    nombre: 'Bebidas frías',
-    icono: Icons.ac_unit_rounded,
-    descripcion: 'Cold brew, frappés refrescantes e iced lattes.',
-  ),
-  panaderia(
-    id: 'panaderia',
-    nombre: 'Panadería',
-    icono: Icons.bakery_dining_rounded,
-    descripcion: 'Croissants recién horneados, roles de canela y muffins.',
-  ),
-  postres(
-    id: 'postres',
-    nombre: 'Postres',
-    icono: Icons.cake_rounded,
-    descripcion: 'Rebanadas de pastel, tartas finas y cheesecakes.',
-  ),
-  alimentos(
-    id: 'alimentos',
-    nombre: 'Alimentos',
-    icono: Icons.lunch_dining_rounded,
-    descripcion: 'Chapatas, baguettes preparados y sándwiches gourmet.',
-  );
-
-  final String id;
+class ProductCategory {
+  final int id;
   final String nombre;
-  final IconData icono;
-  final String descripcion;
+  final String? descripcion;
+  final bool estatus;
 
   const ProductCategory({
     required this.id,
     required this.nombre,
-    required this.icono,
-    required this.descripcion,
+    this.descripcion,
+    this.estatus = true,
   });
 
-  static ProductCategory fromId(String id) {
-    return ProductCategory.values.firstWhere(
-      (cat) => cat.id == id,
-      orElse: () => ProductCategory.bebidasCalientes,
+  IconData get icono {
+    final lower = nombre.toLowerCase();
+    if (lower.contains('caliente')) return Icons.local_fire_department_rounded;
+    if (lower.contains('fría') || lower.contains('fria')) return Icons.ac_unit_rounded;
+    if (lower.contains('panader')) return Icons.bakery_dining_rounded;
+    if (lower.contains('postre')) return Icons.cake_rounded;
+    if (lower.contains('alimento') || lower.contains('comida')) return Icons.lunch_dining_rounded;
+    return Icons.coffee_rounded;
+  }
+
+  factory ProductCategory.fromJson(Map<String, dynamic> json) {
+    return ProductCategory(
+      id: json['pk_categoria'] as int? ?? (json['id'] as int? ?? 0),
+      nombre: json['nom_categoria'] as String? ?? (json['nombre'] as String? ?? ''),
+      descripcion: json['descripcion'] as String?,
+      estatus: json['estatus'] as bool? ?? true,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'pk_categoria': id,
+        'nom_categoria': nombre,
+        'descripcion': descripcion,
+        'estatus': estatus,
+      };
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ProductCategory && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 }

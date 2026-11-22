@@ -13,16 +13,18 @@ enum UserRole {
 }
 
 class AppUser {
-  final String id;
+  final int id;
+  final String username;
   final String name;
-  final String email;
   final UserRole role;
+  final int? personaId;
 
   const AppUser({
     required this.id,
+    required this.username,
     required this.name,
-    required this.email,
     required this.role,
+    this.personaId,
   });
 
   bool get isAdmin => role == UserRole.admin;
@@ -30,17 +32,21 @@ class AppUser {
 
   Map<String, dynamic> toJson() => {
         'id': id,
+        'username': username,
         'name': name,
-        'email': email,
         'role': role.name,
+        'personaId': personaId,
       };
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
     return AppUser(
-      id: json['id'] as String? ?? 'usr_1',
-      name: json['name'] as String? ?? 'Usuario',
-      email: json['email'] as String? ?? '',
-      role: json['role'] == 'admin' ? UserRole.admin : UserRole.customer,
+      id: json['id'] as int? ?? (json['pk_usuario'] as int? ?? 0),
+      username: json['username'] as String? ?? (json['nom_usuario'] as String? ?? ''),
+      name: json['name'] as String? ?? '',
+      role: json['role'] == 'admin' || json['fk_tipo_usu'] == 1
+          ? UserRole.admin
+          : UserRole.customer,
+      personaId: json['personaId'] as int? ?? json['fk_persona'] as int?,
     );
   }
 }

@@ -3,7 +3,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'dart:math';
 import '../../config/app_theme.dart';
 import '../../models/cart_item.dart';
 import '../../state/coffee_shop_scope.dart';
@@ -295,30 +294,38 @@ class CartScreen extends StatelessWidget {
             child: SizedBox(
               width: 72,
               height: 72,
-              child: CachedNetworkImage(
-                imageUrl: item.product.imagenUrl,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  color: AppTheme.surfaceCream,
-                  child: const Center(
-                    child: SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppTheme.caramel,
+              child: item.product.primaryImageUrl.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: item.product.primaryImageUrl,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        color: AppTheme.surfaceCream,
+                        child: const Center(
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppTheme.caramel,
+                            ),
+                          ),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        color: AppTheme.surfaceCream,
+                        child: const Icon(
+                          Icons.coffee_rounded,
+                          color: AppTheme.cinnamon,
+                        ),
+                      ),
+                    )
+                  : Container(
+                      color: AppTheme.surfaceCream,
+                      child: const Icon(
+                        Icons.coffee_rounded,
+                        color: AppTheme.cinnamon,
                       ),
                     ),
-                  ),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  color: AppTheme.surfaceCream,
-                  child: const Icon(
-                    Icons.coffee_rounded,
-                    color: AppTheme.cinnamon,
-                  ),
-                ),
-              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -566,16 +573,17 @@ class CartScreen extends StatelessWidget {
                     if (order != null && context.mounted) {
                       _showOrderSuccessDialog(
                         context,
-                        order.id,
+                        order.orderCode,
                         order.total,
                       );
                     } else if (context.mounted) {
+                      final errorMsg = state.lastOrderError ??
+                          'Error al procesar el pedido. Comprueba las existencias o la conexión.';
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Error al procesar el pedido. Comprueba las existencias.',
-                          ),
+                        SnackBar(
+                          content: Text(errorMsg),
                           backgroundColor: AppTheme.statusDanger,
+                          duration: const Duration(seconds: 4),
                         ),
                       );
                     }

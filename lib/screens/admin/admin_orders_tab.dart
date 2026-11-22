@@ -47,7 +47,7 @@ class _AdminOrdersTabState extends State<AdminOrdersTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Actualizar estado del pedido ${order.id}',
+                  'Actualizar estado del pedido ${order.orderCode}',
                   style: GoogleFonts.sora(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -85,16 +85,20 @@ class _AdminOrdersTabState extends State<AdminOrdersTab> {
                         color: isCurrent ? color : AppTheme.textDark,
                       ),
                     ),
-                    onTap: () {
+                    onTap: () async {
                       final state = CoffeeShopScope.of(context);
-                      state.updateOrderStatus(order.id, status);
                       Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Pedido ${order.id} actualizado a "${status.displayName}"'),
-                          duration: const Duration(seconds: 1),
-                        ),
-                      );
+                      await state.updateOrderStatus(order.id, status);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Pedido ${order.orderCode} actualizado a "${status.displayName}"',
+                            ),
+                            duration: const Duration(seconds: 1),
+                          ),
+                        );
+                      }
                     },
                   );
                 }),
@@ -124,7 +128,7 @@ class _AdminOrdersTabState extends State<AdminOrdersTab> {
       }
       if (_searchQuery.trim().isNotEmpty) {
         final q = _searchQuery.toLowerCase().trim();
-        final matchId = o.id.toLowerCase().contains(q);
+        final matchId = o.orderCode.toLowerCase().contains(q) || o.id.toString().contains(q);
         final matchClient = o.customerName.toLowerCase().contains(q);
         if (!matchId && !matchClient) return false;
       }
@@ -145,7 +149,7 @@ class _AdminOrdersTabState extends State<AdminOrdersTab> {
               TextField(
                 onChanged: (val) => setState(() => _searchQuery = val),
                 decoration: InputDecoration(
-                  hintText: 'Buscar por # de orden o nombre de cliente...',
+                  hintText: 'Buscar por # de orden o cliente...',
                   prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.caramel, size: 20),
                   filled: true,
                   fillColor: AppTheme.surfaceCream,
@@ -191,222 +195,223 @@ class _AdminOrdersTabState extends State<AdminOrdersTab> {
           ),
         ),
 
-        // Lista de Órdenes
+        // Lista de Órdenes con Pull-to-refresh
         Expanded(
-          child: filtered.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.receipt_long_outlined,
-                        size: 48,
-                        color: AppTheme.textLight.withOpacity(0.5),
+          child: RefreshIndicator(
+            onRefresh: () => state.loadOrders(),
+            color: AppTheme.caramel,
+            child: filtered.isEmpty
+                ? Center(
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.receipt_long_outlined,
+                            size: 48,
+                            color: AppTheme.textLight.withOpacity(0.5),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No hay pedidos con el filtro actual.',
+                            style: GoogleFonts.sora(fontSize: 14, color: AppTheme.textMedium),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'No hay pedidos con el filtro actual.',
-                        style: GoogleFonts.sora(fontSize: 14, color: AppTheme.textMedium),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final order = filtered[index];
-                    final statusColor = _getStatusColor(order.status);
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final order = filtered[index];
+                      final statusColor = _getStatusColor(order.status);
 
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: AppTheme.surfaceWhite,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: AppTheme.borderLight),
-                        boxShadow: AppTheme.softShadow,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Encabezado de la orden: ID, Estatus y Fecha
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.primaryCoffee.withOpacity(0.08),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        order.id,
-                                        style: GoogleFonts.sora(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppTheme.primaryCoffee,
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: AppTheme.surfaceWhite,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: AppTheme.borderLight),
+                          boxShadow: AppTheme.softShadow,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Encabezado de la orden: ID, Estatus y Fecha
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.primaryCoffee.withOpacity(0.08),
+                                          borderRadius: BorderRadius.circular(8),
                                         ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      dateFormat.format(order.date),
-                                      style: GoogleFonts.sora(
-                                        fontSize: 11,
-                                        color: AppTheme.textLight,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                InkWell(
-                                  onTap: () => _showChangeStatusDialog(context, order),
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: statusColor.withOpacity(0.12),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: statusColor.withOpacity(0.3)),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          order.status.displayName,
+                                        child: Text(
+                                          order.orderCode,
                                           style: GoogleFonts.sora(
-                                            fontSize: 11,
+                                            fontSize: 13,
                                             fontWeight: FontWeight.w700,
-                                            color: statusColor,
+                                            color: AppTheme.primaryCoffee,
                                           ),
                                         ),
-                                        const SizedBox(width: 4),
-                                        Icon(
-                                          Icons.arrow_drop_down_rounded,
-                                          size: 16,
-                                          color: statusColor,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        dateFormat.format(order.date),
+                                        style: GoogleFonts.sora(
+                                          fontSize: 11,
+                                          color: AppTheme.textLight,
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 10),
-
-                            // Cliente
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.person_outline_rounded,
-                                  size: 16,
-                                  color: AppTheme.caramel,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  order.customerName,
-                                  style: GoogleFonts.sora(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.textDark,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '(${order.customerEmail})',
-                                  style: GoogleFonts.sora(
-                                    fontSize: 11,
-                                    color: AppTheme.textLight,
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 10),
-                            const Divider(height: 1, color: AppTheme.borderLight),
-                            const SizedBox(height: 10),
-
-                            // Detalle de productos pedidos
-                            ...order.items.map((item) {
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 3),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  InkWell(
+                                    onTap: () => _showChangeStatusDialog(context, order),
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: AppTheme.surfaceCream,
-                                        borderRadius: BorderRadius.circular(6),
+                                        color: statusColor.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: statusColor.withOpacity(0.3)),
                                       ),
-                                      child: Text(
-                                        '${item.quantity}x',
-                                        style: GoogleFonts.sora(
-                                          fontSize: 11.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppTheme.primaryCoffee,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        '${item.productName} (${item.sizeName})',
-                                        style: GoogleFonts.sora(
-                                          fontSize: 12.5,
-                                          color: AppTheme.textDark,
-                                        ),
-                                      ),
-                                    ),
-                                    Text(
-                                      currencyFormat.format(item.subtotal),
-                                      style: GoogleFonts.sora(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppTheme.textMedium,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            order.status.displayName,
+                                            style: GoogleFonts.sora(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: statusColor,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Icon(
+                                            Icons.arrow_drop_down_rounded,
+                                            size: 16,
+                                            color: statusColor,
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ],
-                                ),
-                              );
-                            }),
-
-                            const SizedBox(height: 10),
-                            const Divider(height: 1, color: AppTheme.borderLight),
-                            const SizedBox(height: 8),
-
-                            // Total de la orden
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Total cobrado:',
-                                  style: GoogleFonts.sora(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppTheme.textLight,
                                   ),
-                                ),
-                                Text(
-                                  currencyFormat.format(order.total),
-                                  style: GoogleFonts.sora(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
+                                ],
+                              ),
+
+                              const SizedBox(height: 10),
+
+                              // Cliente (nombre desde usuario -> persona)
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.person_outline_rounded,
+                                    size: 16,
                                     color: AppTheme.caramel,
                                   ),
-                                ),
-                              ],
-                            ),
-                          ],
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    order.customerName,
+                                    style: GoogleFonts.sora(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppTheme.textDark,
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 10),
+                              const Divider(height: 1, color: AppTheme.borderLight),
+                              const SizedBox(height: 10),
+
+                              // Detalle de productos pedidos
+                              ...order.items.map((item) {
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 3),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.surfaceCream,
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          '${item.quantity}x',
+                                          style: GoogleFonts.sora(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppTheme.primaryCoffee,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          '${item.productName} (${item.sizeName})',
+                                          style: GoogleFonts.sora(
+                                            fontSize: 12.5,
+                                            color: AppTheme.textDark,
+                                          ),
+                                        ),
+                                      ),
+                                      Text(
+                                        currencyFormat.format(item.subtotal),
+                                        style: GoogleFonts.sora(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.textMedium,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+
+                              const SizedBox(height: 10),
+                              const Divider(height: 1, color: AppTheme.borderLight),
+                              const SizedBox(height: 8),
+
+                              // Total de la orden
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Total del pedido:',
+                                    style: GoogleFonts.sora(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppTheme.textLight,
+                                    ),
+                                  ),
+                                  Text(
+                                    currencyFormat.format(order.total),
+                                    style: GoogleFonts.sora(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppTheme.caramel,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  ),
+          ),
         ),
       ],
     );
