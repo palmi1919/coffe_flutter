@@ -50,3 +50,8 @@ app.*.map.json
 # Variables de entorno y credenciales
 .env
 .env.*
+
+.codigo_db.sql
+
+
+.api_keys.text
