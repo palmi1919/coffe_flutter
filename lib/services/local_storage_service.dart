@@ -1,9 +1,8 @@
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/user.dart';
 
 class LocalStorageService {
   static const String _userKey = 'cafe_aroma_user_session_v2';
+  static const String _legacyUserKey = 'cafe_aroma_user';
 
   final SharedPreferences _prefs;
 
@@ -11,25 +10,14 @@ class LocalStorageService {
 
   static Future<LocalStorageService> init() async {
     final prefs = await SharedPreferences.getInstance();
+    // Limpiar siempre cualquier sesión almacenada previamente al iniciar
+    await prefs.remove(_userKey);
+    await prefs.remove(_legacyUserKey);
     return LocalStorageService(prefs);
   }
 
-  AppUser? loadUser() {
-    final rawJson = _prefs.getString(_userKey);
-    if (rawJson == null || rawJson.isEmpty) return null;
-    try {
-      final decoded = jsonDecode(rawJson) as Map<String, dynamic>;
-      return AppUser.fromJson(decoded);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Future<void> saveUser(AppUser? user) async {
-    if (user == null) {
-      await _prefs.remove(_userKey);
-    } else {
-      await _prefs.setString(_userKey, jsonEncode(user.toJson()));
-    }
+  Future<void> clearSession() async {
+    await _prefs.remove(_userKey);
+    await _prefs.remove(_legacyUserKey);
   }
 }

@@ -7,10 +7,10 @@ class CoffeeAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final String? subtitle;
   final bool showCart;
-  final bool showAdmin;
+  final bool showOrders;
   final bool showLogout;
   final VoidCallback? onCartPressed;
-  final VoidCallback? onAdminPressed;
+  final VoidCallback? onOrdersPressed;
   final VoidCallback? onLogoutPressed;
   final Widget? leading;
 
@@ -19,10 +19,10 @@ class CoffeeAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.title,
     this.subtitle,
     this.showCart = true,
-    this.showAdmin = false,
+    this.showOrders = true,
     this.showLogout = true,
     this.onCartPressed,
-    this.onAdminPressed,
+    this.onOrdersPressed,
     this.onLogoutPressed,
     this.leading,
   });
@@ -78,32 +78,35 @@ class CoffeeAppBar extends StatelessWidget implements PreferredSizeWidget {
         ],
       ),
       actions: [
-        if (showAdmin && state.isAdmin)
-          IconButton(
-            tooltip: 'Panel de Administración',
-            icon: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceWhite,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.borderLight),
+        if (showOrders)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: IconButton(
+              tooltip: 'Mis Pedidos',
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceWhite,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.borderLight),
+                ),
+                child: const Icon(
+                  Icons.receipt_long_outlined,
+                  color: AppTheme.primaryCoffee,
+                  size: 20,
+                ),
               ),
-              child: const Icon(
-                Icons.admin_panel_settings_outlined,
-                color: AppTheme.primaryCoffee,
-                size: 20,
-              ),
+              onPressed: onOrdersPressed,
             ),
-            onPressed: onAdminPressed,
           ),
         if (showCart)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 2),
             child: Stack(
               clipBehavior: Clip.none,
               children: [
                 IconButton(
-                  tooltip: 'Mi Carrito / Pedido',
+                  tooltip: 'Mi Carrito',
                   icon: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(

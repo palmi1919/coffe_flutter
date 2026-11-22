@@ -58,7 +58,7 @@ class CartScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Tu orden fue procesada con éxito y el inventario local ha sido actualizado.',
+                  'Tu orden fue procesada con éxito y enviada a preparación.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.sora(
                     fontSize: 13,
@@ -105,7 +105,7 @@ class CartScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Total pagado (simulación)',
+                            'Total pagado',
                             style: GoogleFonts.sora(
                               fontSize: 12,
                               color: AppTheme.textLight,
@@ -151,7 +151,7 @@ class CartScreen extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.pop(ctx); // Cierra diálogo
-                      Navigator.pop(context); // Regresa a pantalla principal
+                      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.caramel,
@@ -237,7 +237,7 @@ class CartScreen extends StatelessWidget {
               message:
                   'Aún no has agregado productos. Explora nuestro menú y añade tu café o postre favorito.',
               buttonText: 'Explorar menú',
-              onButtonPressed: () => Navigator.pop(context),
+              onButtonPressed: () => Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false),
             )
           : Column(
               children: [
@@ -553,7 +553,7 @@ class CartScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Botón Realizar Pedido (Simulación académica)
+            // Botón Realizar Pedido
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -562,7 +562,7 @@ class CartScreen extends StatelessWidget {
                     context: context,
                     title: '¿Confirmar pedido?',
                     message:
-                        'Estás a punto de confirmar tu orden por ${currencyFormat.format(total)}.\n\nEsta es una simulación funcional: se descontarán las existencias del inventario local.',
+                        'Estás a punto de confirmar tu orden por ${currencyFormat.format(total)}.\n\nTu pedido será enviado a la cocina para su preparación inmediata.',
                     confirmText: 'Realizar pedido',
                     confirmColor: AppTheme.caramel,
                     icon: Icons.receipt_long_rounded,

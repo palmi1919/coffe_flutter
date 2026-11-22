@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import '../models/category.dart';
@@ -25,15 +26,20 @@ class CoffeeShopState extends ChangeNotifier {
   bool _isLoading = true;
   String? _errorMessage;
   String? _lastOrderError;
+  String? _ordersError;
+  bool _isLoadingOrders = false;
+  Timer? _ordersPollTimer;
 
   CoffeeShopState(this._storageService) {
-    _currentUser = _storageService.loadUser();
+    _currentUser = null;
     loadData();
   }
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   String? get lastOrderError => _lastOrderError;
+  String? get ordersError => _ordersError;
+  bool get isLoadingOrders => _isLoadingOrders;
   AppUser? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
   bool get isAdmin => _currentUser?.isAdmin ?? false;
@@ -132,25 +138,69 @@ class CoffeeShopState extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('Error al cargar datos en CoffeeShopState: $e');
-      _errorMessage = 'No se pudo conectar a la base de datos de Supabase. Revisa tu conexión e intenta de nuevo.';
+      _errorMessage =
+          'No se pudo conectar con el servidor. Revisa tu conexión a internet e intenta de nuevo.';
       _isLoading = false;
       notifyListeners();
     }
   }
 
   Future<void> loadOrders() async {
+    if (_currentUser == null) {
+      _orders = [];
+      _ordersError = null;
+      notifyListeners();
+      return;
+    }
+    _isLoadingOrders = true;
+    _ordersError = null;
+    notifyListeners();
     try {
-      if (_currentUser == null) {
-        _orders = [];
-        return;
-      }
       if (_currentUser!.isAdmin) {
         _orders = await SupabaseDbService.fetchOrders();
       } else {
         _orders = await SupabaseDbService.fetchOrders(userId: _currentUser!.id);
       }
+      _isLoadingOrders = false;
+      _ordersError = null;
+      notifyListeners();
     } catch (e) {
       debugPrint('Error al cargar pedidos: $e');
+      _isLoadingOrders = false;
+      _ordersError = 'No se pudieron cargar los pedidos. Intenta de nuevo.';
+      notifyListeners();
+    }
+  }
+
+  void startOrdersPolling() {
+    _ordersPollTimer?.cancel();
+    _ordersPollTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (_currentUser != null) {
+        _pollOrdersQuietly();
+      }
+    });
+  }
+
+  void stopOrdersPolling() {
+    _ordersPollTimer?.cancel();
+    _ordersPollTimer = null;
+  }
+
+  Future<void> _pollOrdersQuietly() async {
+    if (_currentUser == null) return;
+    try {
+      final List<CoffeeOrder> freshOrders;
+      if (_currentUser!.isAdmin) {
+        freshOrders = await SupabaseDbService.fetchOrders();
+      } else {
+        freshOrders =
+            await SupabaseDbService.fetchOrders(userId: _currentUser!.id);
+      }
+      _orders = freshOrders;
+      _ordersError = null;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error en sondeo de pedidos: $e');
     }
   }
 
@@ -159,16 +209,18 @@ class CoffeeShopState extends ChangeNotifier {
   // ==========================================
   Future<void> login(AppUser user) async {
     _currentUser = user;
-    await _storageService.saveUser(user);
     await loadOrders();
+    startOrdersPolling();
     notifyListeners();
   }
 
   Future<void> logout() async {
+    stopOrdersPolling();
     _currentUser = null;
     _cartItems.clear();
     _orders = [];
-    await _storageService.saveUser(null);
+    _ordersError = null;
+    await _storageService.clearSession();
     notifyListeners();
   }
 
@@ -480,5 +532,11 @@ class CoffeeShopState extends ChangeNotifier {
       debugPrint('Error al actualizar estado del pedido: $e');
       rethrow;
     }
+  }
+
+  @override
+  void dispose() {
+    stopOrdersPolling();
+    super.dispose();
   }
 }

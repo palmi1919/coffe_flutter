@@ -102,12 +102,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           color: AppTheme.textDark,
                         ),
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const CartScreen(),
-                            ),
-                          );
+                          Navigator.pushNamed(context, '/cart');
                         },
                       ),
                     ),
@@ -457,7 +452,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           );
 
                           if (added) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            final messenger = ScaffoldMessenger.of(context);
+                            final nav = Navigator.of(context);
+
+                            messenger.hideCurrentSnackBar();
+                            messenger.showSnackBar(
                               SnackBar(
                                 content: Text(
                                   '¡$_quantity x ${product.nombre} (${_selectedSize!.nombre}) agregado al carrito!',
@@ -467,17 +466,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   label: 'Ir al carrito',
                                   textColor: AppTheme.caramelLight,
                                   onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => const CartScreen(),
-                                      ),
-                                    );
+                                    nav.pushNamed('/cart');
                                   },
                                 ),
                               ),
                             );
-                            Navigator.pop(context);
+                            nav.pop();
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(

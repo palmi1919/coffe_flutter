@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/app_theme.dart';
+import '../../models/order.dart';
 import '../../state/coffee_shop_scope.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../auth/login_screen.dart';
-import '../customer/home_screen.dart';
 import 'add_product_screen.dart';
 import 'admin_dashboard_tab.dart';
 import 'admin_inventory_tab.dart';
@@ -49,10 +49,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
       final state = CoffeeShopScope.of(context);
       await state.logout();
       if (context.mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-          (route) => false,
-        );
+        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
       }
     }
   }
@@ -63,7 +60,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Datos sincronizados con Supabase.'),
+          content: Text('Datos actualizados.'),
           duration: Duration(seconds: 2),
         ),
       );
@@ -71,6 +68,9 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
   }
 
   void _navigateToTab(int index) {
+    if (index == 0 || index == 3) {
+      CoffeeShopScope.of(context).loadOrders();
+    }
     setState(() {
       _currentIndex = index;
     });
@@ -129,31 +129,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
           ],
         ),
         actions: [
-          // Botón para que el admin pueda acceder al modo cliente / hacer pedidos de café
-          IconButton(
-            tooltip: 'Vista Menú / Pedir Café',
-            icon: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceCream,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppTheme.borderLight),
-              ),
-              child: const Icon(
-                Icons.local_cafe_outlined,
-                color: AppTheme.primaryCoffee,
-                size: 20,
-              ),
-            ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const HomeScreen()),
-              );
-            },
-          ),
-
-          // Menú de opciones adicionales (Restablecer demo, Cerrar sesión)
+          // Menú de opciones adicionales (Actualizar datos, Cerrar sesión)
           PopupMenuButton<String>(
             tooltip: 'Opciones de Administrador',
             icon: Container(
@@ -209,7 +185,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
                     const Icon(Icons.sync_rounded, size: 18, color: AppTheme.caramel),
                     const SizedBox(width: 10),
                     Text(
-                      'Sincronizar Supabase',
+                      'Actualizar datos',
                       style: GoogleFonts.sora(fontSize: 13),
                     ),
                   ],
@@ -281,38 +257,58 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
           ],
         ),
         child: SafeArea(
-          child: BottomNavigationBar(
-            currentIndex: _currentIndex,
-            onTap: _navigateToTab,
-            type: BottomNavigationBarType.fixed,
-            backgroundColor: AppTheme.surfaceWhite,
-            selectedItemColor: AppTheme.caramel,
-            unselectedItemColor: AppTheme.textLight,
-            selectedLabelStyle: GoogleFonts.sora(fontSize: 11, fontWeight: FontWeight.w700),
-            unselectedLabelStyle: GoogleFonts.sora(fontSize: 11, fontWeight: FontWeight.w500),
-            elevation: 0,
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.dashboard_outlined),
-                activeIcon: Icon(Icons.dashboard_rounded),
-                label: 'Dashboard',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.menu_book_outlined),
-                activeIcon: Icon(Icons.menu_book_rounded),
-                label: 'Catálogo',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.inventory_2_outlined),
-                activeIcon: Icon(Icons.inventory_2_rounded),
-                label: 'Inventario',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.receipt_long_outlined),
-                activeIcon: Icon(Icons.receipt_long_rounded),
-                label: 'Pedidos',
-              ),
-            ],
+          child: Builder(
+            builder: (context) {
+              final pendingCount = state.allOrders
+                  .where((o) => o.status == OrderStatus.pendiente)
+                  .length;
+
+              return BottomNavigationBar(
+                currentIndex: _currentIndex,
+                onTap: _navigateToTab,
+                type: BottomNavigationBarType.fixed,
+                backgroundColor: AppTheme.surfaceWhite,
+                selectedItemColor: AppTheme.caramel,
+                unselectedItemColor: AppTheme.textLight,
+                selectedLabelStyle:
+                    GoogleFonts.sora(fontSize: 11, fontWeight: FontWeight.w700),
+                unselectedLabelStyle:
+                    GoogleFonts.sora(fontSize: 11, fontWeight: FontWeight.w500),
+                elevation: 0,
+                items: [
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.dashboard_outlined),
+                    activeIcon: Icon(Icons.dashboard_rounded),
+                    label: 'Dashboard',
+                  ),
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.menu_book_outlined),
+                    activeIcon: Icon(Icons.menu_book_rounded),
+                    label: 'Catálogo',
+                  ),
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.inventory_2_outlined),
+                    activeIcon: Icon(Icons.inventory_2_rounded),
+                    label: 'Inventario',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Badge(
+                      isLabelVisible: pendingCount > 0,
+                      label: Text('$pendingCount'),
+                      backgroundColor: AppTheme.statusDanger,
+                      child: const Icon(Icons.receipt_long_outlined),
+                    ),
+                    activeIcon: Badge(
+                      isLabelVisible: pendingCount > 0,
+                      label: Text('$pendingCount'),
+                      backgroundColor: AppTheme.statusDanger,
+                      child: const Icon(Icons.receipt_long_rounded),
+                    ),
+                    label: 'Pedidos',
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),

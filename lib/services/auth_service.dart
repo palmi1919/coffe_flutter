@@ -53,18 +53,44 @@ class AuthService {
         }
       }
 
-      final int tipoUsu = res['fk_tipo_usu'] as int? ?? 2;
+      final int tipoUsu = (res['fk_tipo_usu'] as num?)?.toInt() ?? 2;
       final role = (tipoUsu == 1) ? UserRole.admin : UserRole.customer;
 
       return AppUser(
-        id: res['pk_usuario'] as int,
+        id: (res['pk_usuario'] as num).toInt(),
         username: res['nom_usuario'] as String? ?? cleanId,
         name: fullName,
         role: role,
-        personaId: personaMap?['pk_persona'] as int?,
+        personaId: personaMap?['pk_persona'] != null
+            ? (personaMap!['pk_persona'] as num).toInt()
+            : null,
       );
     } catch (e) {
-      debugPrint('Error al autenticar contra Supabase: $e');
+      debugPrint('Error al autenticar: $e');
+      rethrow;
+    }
+  }
+
+  static Future<void> registerClient({
+    required String nombre,
+    required String apaterno,
+    String? amaterno,
+    required String username,
+    required String password,
+  }) async {
+    try {
+      final client = SupabaseConfig.client;
+      await client.rpc('registrar_cliente', params: {
+        'p_nom_persona': nombre.trim(),
+        'p_apaterno': apaterno.trim(),
+        'p_amaterno': (amaterno != null && amaterno.trim().isNotEmpty)
+            ? amaterno.trim()
+            : null,
+        'p_nom_usuario': username.trim(),
+        'p_contrasena': password.trim(),
+      });
+    } catch (e) {
+      debugPrint('Error en registro de cliente: $e');
       rethrow;
     }
   }

@@ -154,10 +154,9 @@ class SupabaseDbService {
             await _client.from('producto').delete().eq('pk_producto', newProdId);
           } catch (_) {}
 
+          debugPrint('Error en storage: $storageError');
           throw Exception(
-            'El bucket "${SupabaseConfig.bucketProductos}" no existe o no tiene permisos en Supabase Storage. '
-            'Crea el bucket público "productos" en tu panel de Supabase (Storage -> New Bucket -> "productos" público). '
-            'Detalle: $storageError',
+            'No se pudieron guardar las imágenes del producto. Intenta de nuevo.',
           );
         }
       }

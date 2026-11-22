@@ -80,7 +80,7 @@ class _EditProductsScreenState extends State<EditProductsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${filtered.length} productos en Supabase',
+                '${filtered.length} productos en catálogo',
                 style: GoogleFonts.sora(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -503,16 +503,17 @@ class _EditProductSheetState extends State<_EditProductSheet> {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('¡Producto actualizado correctamente en Supabase!'),
+          content: Text('¡Producto actualizado con éxito!'),
           backgroundColor: AppTheme.statusSuccess,
         ),
       );
     } catch (e) {
+      debugPrint('Error al actualizar producto: $e');
       if (!mounted) return;
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al actualizar en Supabase: $e'),
+        const SnackBar(
+          content: Text('Error al actualizar el producto.'),
           backgroundColor: AppTheme.statusDanger,
         ),
       );
@@ -524,7 +525,7 @@ class _EditProductSheetState extends State<_EditProductSheet> {
       context: context,
       title: '¿Eliminar producto?',
       message:
-          '¿Estás seguro de que deseas eliminar permanentemente este producto de Supabase? Esta acción no se puede deshacer.',
+          '¿Estás seguro de que deseas eliminar permanentemente este producto del catálogo? Esta acción no se puede deshacer.',
       confirmText: 'Eliminar',
       confirmColor: AppTheme.statusDanger,
       icon: Icons.delete_forever_rounded,
@@ -1104,11 +1105,11 @@ class _EditProductSheetState extends State<_EditProductSheet> {
                               child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                             ),
                             SizedBox(width: 12),
-                            Text('Actualizando en Supabase...'),
+                            Text('Actualizando producto...'),
                           ],
                         )
                       : Text(
-                          'Actualizar Producto en Supabase',
+                          'Guardar Cambios',
                           style: GoogleFonts.sora(fontSize: 14, fontWeight: FontWeight.w700),
                         ),
                 ),

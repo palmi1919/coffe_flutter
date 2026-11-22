@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/app_theme.dart';
-import '../../models/user.dart';
 import '../../services/auth_service.dart';
 import '../../state/coffee_shop_scope.dart';
-import '../admin/admin_main_screen.dart';
-import '../customer/home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,10 +13,9 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _userController = TextEditingController(text: 'admin');
-  final _passwordController = TextEditingController(text: 'admin123');
+  final _userController = TextEditingController();
+  final _passwordController = TextEditingController();
 
-  UserRole _selectedRoleTab = UserRole.admin;
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _errorMessage;
@@ -29,20 +25,6 @@ class _LoginScreenState extends State<LoginScreen> {
     _userController.dispose();
     _passwordController.dispose();
     super.dispose();
-  }
-
-  void _switchRoleTab(UserRole role) {
-    setState(() {
-      _selectedRoleTab = role;
-      _errorMessage = null;
-      if (role == UserRole.admin) {
-        _userController.text = 'admin';
-        _passwordController.text = 'admin123';
-      } else {
-        _userController.text = 'cliente';
-        _passwordController.text = 'cliente123';
-      }
-    });
   }
 
   Future<void> _handleLogin() async {
@@ -68,38 +50,24 @@ class _LoginScreenState extends State<LoginScreen> {
         if (!mounted) return;
 
         if (user.isAdmin) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const AdminMainScreen()),
-          );
+          Navigator.of(context).pushReplacementNamed('/admin');
         } else {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-          );
+          Navigator.of(context).pushReplacementNamed('/home');
         }
       } else {
         setState(() {
-          _errorMessage =
-              'Usuario o contraseña incorrectos, o cuenta inactiva. Verifica tus datos en Supabase.';
+          _errorMessage = 'Usuario o contraseña incorrectos.';
           _isLoading = false;
         });
       }
     } catch (e) {
+      debugPrint('Error de autenticación: $e');
       if (!mounted) return;
       setState(() {
-        _errorMessage =
-            'Error al conectar con Supabase: ${e.toString().replaceAll('Exception:', '')}';
+        _errorMessage = 'No se pudo conectar. Intenta de nuevo.';
         _isLoading = false;
       });
     }
-  }
-
-  void _quickFillAndLogin(String user, String pass, UserRole role) {
-    setState(() {
-      _selectedRoleTab = role;
-      _userController.text = user;
-      _passwordController.text = pass;
-    });
-    _handleLogin();
   }
 
   @override
@@ -112,7 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
+              constraints: const BoxConstraints(maxWidth: 420),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -130,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.primaryCoffee.withOpacity(0.35),
+                            color: AppTheme.primaryCoffee.withValues(alpha: 0.35),
                             blurRadius: 18,
                             offset: const Offset(0, 8),
                           ),
@@ -139,11 +107,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: const Icon(
                         Icons.coffee_rounded,
                         color: AppTheme.caramelLight,
-                        size: 42,
+                        size: 44,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   Text(
                     'Café Aroma',
                     textAlign: TextAlign.center,
@@ -156,7 +124,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Acceso al Sistema y Menú Digital (Supabase)',
+                    'Inicia sesión para continuar',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.sora(
                       fontSize: 13,
@@ -166,109 +134,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 28),
 
-                  // Selector de Rol (Administrador / Cliente)
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: AppTheme.surfaceCream,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppTheme.borderLight),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: InkWell(
-                            onTap: () => _switchRoleTab(UserRole.admin),
-                            borderRadius: BorderRadius.circular(12),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              decoration: BoxDecoration(
-                                color: _selectedRoleTab == UserRole.admin
-                                    ? AppTheme.primaryCoffee
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: _selectedRoleTab == UserRole.admin
-                                    ? AppTheme.softShadow
-                                    : [],
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.admin_panel_settings_rounded,
-                                    size: 18,
-                                    color: _selectedRoleTab == UserRole.admin
-                                        ? Colors.white
-                                        : AppTheme.textMedium,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Administrador',
-                                    style: GoogleFonts.sora(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: _selectedRoleTab == UserRole.admin
-                                          ? Colors.white
-                                          : AppTheme.textMedium,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: InkWell(
-                            onTap: () => _switchRoleTab(UserRole.customer),
-                            borderRadius: BorderRadius.circular(12),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              decoration: BoxDecoration(
-                                color: _selectedRoleTab == UserRole.customer
-                                    ? AppTheme.primaryCoffee
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: _selectedRoleTab == UserRole.customer
-                                    ? AppTheme.softShadow
-                                    : [],
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.person_rounded,
-                                    size: 18,
-                                    color: _selectedRoleTab == UserRole.customer
-                                        ? Colors.white
-                                        : AppTheme.textMedium,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Cliente',
-                                    style: GoogleFonts.sora(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: _selectedRoleTab == UserRole.customer
-                                          ? Colors.white
-                                          : AppTheme.textMedium,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
                   // Tarjeta Formulario de Login
                   Container(
-                    padding: const EdgeInsets.all(22),
+                    padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
                       color: AppTheme.surfaceWhite,
                       borderRadius: BorderRadius.circular(20),
@@ -280,36 +148,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            _selectedRoleTab == UserRole.admin
-                                ? 'Portal de Gestión y Administración'
-                                : 'Pide tu Café Favorito',
-                            style: GoogleFonts.sora(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.textDark,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _selectedRoleTab == UserRole.admin
-                                ? 'Autenticación contra tabla usuario (fk_tipo_usu = 1)'
-                                : 'Autenticación contra tabla usuario (fk_tipo_usu = 2)',
-                            style: GoogleFonts.sora(
-                              fontSize: 12,
-                              color: AppTheme.textLight,
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-
                           if (_errorMessage != null) ...[
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: AppTheme.statusDanger.withOpacity(0.1),
+                                color: AppTheme.statusDanger.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: AppTheme.statusDanger.withOpacity(0.3),
+                                  color: AppTheme.statusDanger.withValues(alpha: 0.3),
                                 ),
                               ),
                               child: Row(
@@ -332,7 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 16),
                           ],
 
                           // Campo Usuario
@@ -349,9 +195,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             controller: _userController,
                             keyboardType: TextInputType.text,
                             decoration: InputDecoration(
-                              hintText: _selectedRoleTab == UserRole.admin
-                                  ? 'admin'
-                                  : 'cliente',
+                              hintText: 'Ingresa tu usuario',
                               prefixIcon: const Icon(
                                 Icons.person_outline_rounded,
                                 color: AppTheme.caramel,
@@ -371,6 +215,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: const BorderSide(color: AppTheme.caramel, width: 2),
                               ),
+                              errorBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: AppTheme.statusDanger),
+                              ),
+                              focusedErrorBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: AppTheme.statusDanger, width: 2),
+                              ),
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 14,
                                 vertical: 12,
@@ -384,7 +236,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                           ),
 
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 16),
 
                           // Campo Contraseña
                           Text(
@@ -434,6 +286,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: const BorderSide(color: AppTheme.caramel, width: 2),
                               ),
+                              errorBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: AppTheme.statusDanger),
+                              ),
+                              focusedErrorBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: AppTheme.statusDanger, width: 2),
+                              ),
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 14,
                                 vertical: 12,
@@ -447,7 +307,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                           ),
 
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 24),
 
                           // Botón Iniciar Sesión
                           SizedBox(
@@ -473,9 +333,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     )
                                   : Text(
-                                      _selectedRoleTab == UserRole.admin
-                                          ? 'Entrar como Administrador'
-                                          : 'Entrar como Cliente',
+                                      'Iniciar sesión',
                                       style: GoogleFonts.sora(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w700,
@@ -488,99 +346,33 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 20),
 
-                  // Accesos Rápidos
-                  Text(
-                    'USUARIOS DE PRUEBA EN SUPABASE',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.sora(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textLight,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
+                  // Enlace a Registro
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _isLoading
-                              ? null
-                              : () => _quickFillAndLogin('admin', 'admin123', UserRole.admin),
-                          icon: const Icon(
-                            Icons.admin_panel_settings_rounded,
-                            size: 16,
-                            color: AppTheme.primaryCoffee,
-                          ),
-                          label: Text(
-                            'Admin (admin)',
-                            style: GoogleFonts.sora(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.primaryCoffee,
-                            ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: AppTheme.primaryCoffee, width: 1.2),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            backgroundColor: Colors.white,
-                          ),
+                      Text(
+                        '¿No tienes cuenta?',
+                        style: GoogleFonts.sora(
+                          fontSize: 13,
+                          color: AppTheme.textMedium,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _isLoading
-                              ? null
-                              : () => _quickFillAndLogin('cliente', 'cliente123', UserRole.customer),
-                          icon: const Icon(
-                            Icons.local_cafe_rounded,
-                            size: 16,
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pushNamed('/register');
+                        },
+                        child: Text(
+                          'Crear cuenta',
+                          style: GoogleFonts.sora(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
                             color: AppTheme.caramel,
-                          ),
-                          label: Text(
-                            'Cliente (cliente)',
-                            style: GoogleFonts.sora(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.caramel,
-                            ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: AppTheme.caramel, width: 1.2),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            backgroundColor: Colors.white,
                           ),
                         ),
                       ),
                     ],
-                  ),
-
-                  const SizedBox(height: 16),
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.surfaceCream,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        'admin / admin123  •  cliente / cliente123',
-                        style: GoogleFonts.sora(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w500,
-                          color: AppTheme.textMedium,
-                        ),
-                      ),
-                    ),
                   ),
                 ],
               ),

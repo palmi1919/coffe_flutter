@@ -44,10 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final state = CoffeeShopScope.of(context);
       await state.logout();
       if (context.mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-          (route) => false,
-        );
+        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
       }
     }
   }
@@ -84,10 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Ver carrito',
             textColor: AppTheme.caramelLight,
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CartScreen()),
-              );
+              Navigator.pushNamed(context, '/cart');
             },
           ),
         ),
@@ -115,14 +109,15 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: CoffeeAppBar(
         title: 'Café Aroma',
         subtitle: user != null ? '¡Hola, ${user.name}!' : 'Pide tu café favorito',
-        showAdmin: false,
+        showOrders: true,
+        showCart: true,
         showLogout: true,
+        onOrdersPressed: () {
+          Navigator.pushNamed(context, '/my-orders');
+        },
         onLogoutPressed: () => _handleLogout(context),
         onCartPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const CartScreen()),
-          );
+          Navigator.pushNamed(context, '/cart');
         },
       ),
       body: RefreshIndicator(
@@ -172,68 +167,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             TextButton(
                               onPressed: () => state.loadData(),
                               child: const Text('Reintentar'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                  // Banner de aviso si un administrador está en la vista de cliente
-                  if (state.isAdmin)
-                    SliverToBoxAdapter(
-                      child: Container(
-                        margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: AppTheme.caramel.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppTheme.caramel.withOpacity(0.3)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.admin_panel_settings_rounded,
-                              color: AppTheme.caramel,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'Modo Administrador (Vista de Menú)',
-                                style: GoogleFonts.sora(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.primaryCoffee,
-                                ),
-                              ),
-                            ),
-                            InkWell(
-                              onTap: () {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const AdminMainScreen(),
-                                  ),
-                                );
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.caramel,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  'Ir al Panel Admin',
-                                  style: GoogleFonts.sora(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
                             ),
                           ],
                         ),
@@ -347,7 +280,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
-                  // Selector horizontal de categorías desde Supabase
+                  // Selector horizontal de categorías
                   SliverToBoxAdapter(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

@@ -146,17 +146,18 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('¡Producto registrado con éxito en Supabase!'),
+          content: Text('¡Producto registrado con éxito!'),
           backgroundColor: AppTheme.statusSuccess,
         ),
       );
       Navigator.pop(context);
     } catch (e) {
+      debugPrint('Error al guardar producto: $e');
       if (!mounted) return;
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al guardar en Supabase: $e'),
+        const SnackBar(
+          content: Text('Error al guardar el producto. Intenta de nuevo.'),
           backgroundColor: AppTheme.statusDanger,
         ),
       );
@@ -243,7 +244,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Selecciona una o más fotos desde tu equipo. Se subirán al bucket público "productos" de Supabase.',
+                        'Selecciona una o más fotos desde tu equipo. Formatos soportados: JPG, PNG.',
                         style: GoogleFonts.sora(
                           fontSize: 11.5,
                           color: AppTheme.textMedium,
@@ -484,9 +485,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
                       const SizedBox(height: 14),
 
-                      // Categoría desde Supabase
+                      // Categoría
                       Text(
-                        'Categoría (tabla categoria) *',
+                        'Categoría *',
                         style: GoogleFonts.sora(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -668,7 +669,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Tamaños y Porciones (tabla tamano)',
+                        'Tamaños y Porciones',
                         style: GoogleFonts.sora(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w700,
@@ -829,11 +830,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
                               ),
                             ),
                             SizedBox(width: 12),
-                            Text('Guardando en Supabase...'),
+                            Text('Guardando producto...'),
                           ],
                         )
                       : Text(
-                          'Guardar Producto en Supabase',
+                          'Guardar Producto',
                           style: GoogleFonts.sora(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,

@@ -16,6 +16,16 @@ class _AdminOrdersTabState extends State<AdminOrdersTab> {
   OrderStatus? _statusFilter;
   String _searchQuery = '';
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        CoffeeShopScope.of(context).loadOrders();
+      }
+    });
+  }
+
   Color _getStatusColor(OrderStatus status) {
     switch (status) {
       case OrderStatus.pendiente:
@@ -196,32 +206,70 @@ class _AdminOrdersTabState extends State<AdminOrdersTab> {
         ),
 
         // Lista de Órdenes con Pull-to-refresh
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: () => state.loadOrders(),
-            color: AppTheme.caramel,
-            child: filtered.isEmpty
-                ? Center(
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.receipt_long_outlined,
-                            size: 48,
-                            color: AppTheme.textLight.withOpacity(0.5),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'No hay pedidos con el filtro actual.',
-                            style: GoogleFonts.sora(fontSize: 14, color: AppTheme.textMedium),
-                          ),
-                        ],
-                      ),
+        if (state.ordersError != null && allOrders.isEmpty)
+          Expanded(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.cloud_off_rounded,
+                      size: 48,
+                      color: AppTheme.statusDanger,
                     ),
-                  )
-                : ListView.separated(
+                    const SizedBox(height: 12),
+                    Text(
+                      state.ordersError!,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.sora(fontSize: 14, color: AppTheme.textDark),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () => state.loadOrders(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.caramel,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: const Text('Reintentar'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          )
+        else
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () => state.loadOrders(),
+              color: AppTheme.caramel,
+              child: filtered.isEmpty
+                  ? Center(
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.receipt_long_outlined,
+                              size: 48,
+                              color: AppTheme.textLight.withOpacity(0.5),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No hay pedidos con el filtro actual.',
+                              style: GoogleFonts.sora(fontSize: 14, color: AppTheme.textMedium),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                     physics: const AlwaysScrollableScrollPhysics(
                       parent: BouncingScrollPhysics(),
